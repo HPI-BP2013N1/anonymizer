@@ -1,0 +1,5 @@
+# test scope file
+VISIT
+VISITOR
+CINEMA
+GREATMOVIES

@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+  #%L
+  Anonymizer
+  %%
+  Copyright (C) 2013 - 2014 HPI Bachelor's Project N1 2013
+  %%
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  
+       http://www.apache.org/licenses/LICENSE-2.0
+  
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  #L%
+  -->
+<dataset>
+	<CINEMA COMPANY="CinemaCompany5" ADDRESS="AddressU"
+		SALESREVENUE_LASTYEAR="60000.00" />
+	<CINEMA COMPANY="CinemaCompanyQ" ADDRESS="Addressd"
+		SALESREVENUE_LASTYEAR="23492422.00" />
+	<CINEMA COMPANY="CinemaCompanyQ" ADDRESS="Addresss"
+		SALESREVENUE_LASTYEAR="23947208.00" />
+	<CINEMA COMPANY="CinemaCompanyd" ADDRESS="AddressZ"
+		SALESREVENUE_LASTYEAR="10000000.00" />
+	<CINEMA COMPANY="CinemaCompanyx" ADDRESS="Address7"
+		SALESREVENUE_LASTYEAR="9064935.00" />
+	<CINEMA COMPANY="CinemaCompanyx" ADDRESS="AddressP"
+		SALESREVENUE_LASTYEAR="500000.00" />
+	<GREATMOVIES MOVIE="MovieI" COMPANY="20th Century Fox"
+		DIRECTOR="George Lucas" />
+	<GREATMOVIES MOVIE="MovieX" COMPANY="20th Century Fox"
+		DIRECTOR="James Cameron" />
+	<GREATMOVIES MOVIE="Movied" COMPANY="Paramount"
+		DIRECTOR="Leonard Nimoy" />
+	<VISITOR NAME="Joanne" SURNAME="I" BIRTHDATE="19564507"
+		ZIPCODE="d" ADDRESS="" />
+	<VISITOR NAME="John" SURNAME="I" BIRTHDATE="19554930"
+		ZIPCODE="d" ADDRESS="" />
+	<VISITOR NAME="Portos" SURNAME="x" BIRTHDATE="19944005"
+		ADDRESS="" />
+	<VISITOR NAME="Rufus" SURNAME="x" BIRTHDATE="19314134"
+		ZIPCODE="5" ADDRESS="" />
+	<VISITOR NAME="Simone" SURNAME="Q" BIRTHDATE="20014230"
+		ZIPCODE="Q" ADDRESS="" />
+	<VISITOR NAME="Zaframe" SURNAME="d" BIRTHDATE="19874033"
+		ZIPCODE="x" ADDRESS="" />
+	<VISIT VISITORNAME="John" VISITORSURNAME="I" VISITORBIRTHDATE="19554930"
+		CINEMACOMPANY="CinemaCompanyx" CINEMAADDRESS="AddressP"
+		DATE="2014-03-31 14:00:00.0" MOVIE="Movied" />
+	<VISIT VISITORNAME="Joanne" VISITORSURNAME="I"
+		VISITORBIRTHDATE="19564507" CINEMACOMPANY="CinemaCompany5" CINEMAADDRESS="AddressU"
+		DATE="2014-03-24 18:00:00.0" MOVIE="MovieX" />
+	<VISIT VISITORNAME="Simone" VISITORSURNAME="Q"
+		VISITORBIRTHDATE="20014230" CINEMACOMPANY="CinemaCompanyQ"
+		CINEMAADDRESS="Addressd" DATE="2014-03-21 16:00:00.0"
+		MOVIE="MovieD" />
+	<VISIT VISITORNAME="Rufus" VISITORSURNAME="x"
+		VISITORBIRTHDATE="19314134" CINEMACOMPANY="CinemaCompanyQ" CINEMAADDRESS="Addresss"
+		DATE="1984-11-30 18:00:00.0" MOVIE="Movied" />
+</dataset>

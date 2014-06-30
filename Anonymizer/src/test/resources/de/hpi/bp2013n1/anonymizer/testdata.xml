@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<!--
+  #%L
+  Anonymizer
+  %%
+  Copyright (C) 2013 - 2014 HPI Bachelor's Project N1 2013
+  %%
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+  
+       http://www.apache.org/licenses/LICENSE-2.0
+  
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+  #L%
+  -->
+
+<dataset>
+	<CINEMA COMPANY="CineComp" ADDRESS="Lakarian City / Kanar Boulevard 1"
+		SALESREVENUE_LASTYEAR="23492422.00" />
+	<CINEMA COMPANY="CineComp" ADDRESS="Lakat / Zabu Stew Path 2"
+		SALESREVENUE_LASTYEAR="23947208.00" />
+	<CINEMA COMPANY="MovieXtar" ADDRESS="New Berlin / Milky Way 3"
+		SALESREVENUE_LASTYEAR="10000000.00" />
+	<CINEMA COMPANY="Zalurra" ADDRESS="First City / Gladst Road 4"
+		SALESREVENUE_LASTYEAR="60000.00" />
+	<CINEMA COMPANY="Targ Theatres" ADDRESS="First City / Mot'loch Street 5"
+		SALESREVENUE_LASTYEAR="9064935.00" />
+	<CINEMA COMPANY="Targ Theatres" ADDRESS="Qam-Chee / Grapok Way 6"
+		SALESREVENUE_LASTYEAR="500000.00" />
+	<GREATMOVIES MOVIE="Avatar" COMPANY="20th Century Fox"
+		DIRECTOR="James Cameron" />
+	<GREATMOVIES MOVIE="Star Trek III" COMPANY="Paramount"
+		DIRECTOR="Leonard Nimoy" />
+	<GREATMOVIES MOVIE="Star Wars" COMPANY="20th Century Fox"
+		DIRECTOR="George Lucas" />
+	<VISITOR NAME="Rufus" SURNAME="Writtleforth" BIRTHDATE="19310710"
+		ZIPCODE="12313" ADDRESS="Lakat / Taspar Street 28" />
+	<VISITOR NAME="John" SURNAME="Doe" BIRTHDATE="19550412"
+		ZIPCODE="72563" ADDRESS="First City / Bloodwine Hall 56" />
+	<VISITOR NAME="Joanne" SURNAME="Doe" BIRTHDATE="19560823"
+		ZIPCODE="72563" ADDRESS="First City / Bloodwine Hall 56" />
+	<VISITOR NAME="Portos" SURNAME="Writtleforth" BIRTHDATE="19940228" />
+	<VISITOR NAME="Simone" SURNAME="Ridiculous" BIRTHDATE="20010912"
+		ZIPCODE="94857" ADDRESS="Lakarian City / Moron Street 7" />
+	<VISITOR NAME="Zaframe" SURNAME="Ziggarowl" BIRTHDATE="19870211"
+		ZIPCODE="23409" ADDRESS="Candy Mountain" />
+	<VISIT VISITORNAME="John" VISITORSURNAME="Doe" VISITORBIRTHDATE="19550412"
+		CINEMACOMPANY="Targ Theatres" CINEMAADDRESS="Qam-Chee / Grapok Way 6"
+		DATE="2014-03-31 14:00:00.0" MOVIE="Star Trek III" />
+	<VISIT VISITORNAME="Joanne" VISITORSURNAME="Doe"
+		VISITORBIRTHDATE="19560823" CINEMACOMPANY="Zalurra" CINEMAADDRESS="First City / Gladst Road 4"
+		DATE="2014-03-24 18:00:00.0" MOVIE="Avatar" />
+	<VISIT VISITORNAME="Simone" VISITORSURNAME="Ridiculous"
+		VISITORBIRTHDATE="20010912" CINEMACOMPANY="CineComp"
+		CINEMAADDRESS="Lakarian City / Kanar Boulevard 1" DATE="2014-03-21 16:00:00.0"
+		MOVIE="Psycho" />
+	<VISIT VISITORNAME="Rufus" VISITORSURNAME="Writtleforth"
+		VISITORBIRTHDATE="19310710" CINEMACOMPANY="CineComp" CINEMAADDRESS="Lakat / Zabu Stew Path 2"
+		DATE="1984-11-30 18:00:00.0" MOVIE="Star Trek III" />
+</dataset>

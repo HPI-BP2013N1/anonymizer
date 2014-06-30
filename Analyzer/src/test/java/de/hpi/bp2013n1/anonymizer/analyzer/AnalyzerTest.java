@@ -1,0 +1,208 @@
+package de.hpi.bp2013n1.anonymizer.analyzer;
+
+/*
+ * #%L
+ * Analyzer
+ * %%
+ * Copyright (C) 2013 - 2014 HPI-BP2013N1
+ * %%
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * #L%
+ */
+
+
+import static org.hamcrest.Matchers.*;
+import static org.junit.Assert.*;
+
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.sql.Statement;
+
+import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.DatabaseConnection;
+import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
+import org.dbunit.operation.DatabaseOperation;
+import org.h2.tools.RunScript;
+import org.hamcrest.Matcher;
+import org.hamcrest.Matchers;
+import org.junit.Before;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer;
+import de.hpi.bp2013n1.anonymizer.db.TableField;
+import de.hpi.bp2013n1.anonymizer.shared.Config;
+import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
+import de.hpi.bp2013n1.anonymizer.shared.Rule;
+import de.hpi.bp2013n1.anonymizer.shared.Scope;
+
+public class AnalyzerTest {
+
+	// TODO: alleviate code duplication with Anonymizer tests
+	static Config config;
+	static Scope scope;
+	static Connection originalDbConnection;
+	static Connection transformationDbConnection;
+	static Connection destinationDbConnection;
+	static File logFile;
+	private Analyzer sut;
+	
+	@Before
+	public void setSchema() throws SQLException {
+		staticSetSchema();
+	}
+
+	private static void staticSetSchema() throws SQLException {
+		try (Statement s = originalDbConnection.createStatement()) {
+			s.execute("SET SCHEMA = " + config.schemaName);
+		}
+		// originalDbConnection.setSchema(config.schemaName);
+		try (Statement s = transformationDbConnection.createStatement()) {
+			s.execute("SET SCHEMA = " + config.schemaName);
+		}
+		// transformationDbConnection.setSchema(config.schemaName);
+		try (Statement s = destinationDbConnection.createStatement()) {
+			s.execute("SET SCHEMA = " + config.schemaName);
+		}
+		// destinationDbConnection.setSchema(config.schemaName);
+	}
+
+	@BeforeClass
+	public static void setUpDatabases() throws Exception {
+		createDbConnections();
+		populateDatabases();
+	}
+	
+	@Before
+	public void createAnalyzer() throws Exception {
+		readConfig();
+		sut = new Analyzer(originalDbConnection, config, scope);
+	}
+	
+	private static void createDbConnections() throws Exception {
+		readConfig();
+		scope = new Scope();
+		scope.readFromURL(AnalyzerTest.class.getResource("/de/hpi/bp2013n1/anonymizer/testscope.txt"));
+		originalDbConnection = DatabaseConnector.connect(config.originalDB);
+		transformationDbConnection = DatabaseConnector.connect(config.transformationDB);
+		destinationDbConnection = DatabaseConnector.connect(config.destinationDB);
+	}
+
+	private static void readConfig() throws Exception {
+		config = new Config();
+		config.readFromURL(AnalyzerTest.class.getResource(
+				"AnalyzerTestConfig.txt"));
+	}
+
+	private static void populateDatabases() throws DatabaseUnitException,
+			IOException, SQLException {
+		executeDdlScript("/de/hpi/bp2013n1/anonymizer/testschema.ddl.sql", originalDbConnection);
+		executeDdlScript("/de/hpi/bp2013n1/anonymizer/testschema.ddl.sql", destinationDbConnection);
+		executeDdlScript("/de/hpi/bp2013n1/anonymizer/testpseudonymsschema.ddl.sql", transformationDbConnection);
+	}
+
+	@Before
+	public void importData() throws DatabaseUnitException, IOException,
+			SQLException {
+		importData(originalDbConnection, config.schemaName, "/de/hpi/bp2013n1/anonymizer/testdata.xml");
+		importData(transformationDbConnection, config.schemaName,
+				"/de/hpi/bp2013n1/anonymizer/testpseudonyms.xml");
+	}
+
+	private static void executeDdlScript(String scriptFileName,
+			Connection dbConnection) throws SQLException, IOException {
+		try (InputStream ddlStream = AnalyzerTest.class
+				.getResourceAsStream(scriptFileName);
+				InputStreamReader ddlReader = new InputStreamReader(ddlStream)) {
+			RunScript.execute(dbConnection, ddlReader);
+		}
+	}
+
+	private static void importData(Connection connection, String schemaName,
+			String dataSetFilename) throws DatabaseUnitException, IOException,
+			SQLException {
+		IDatabaseConnection db = new DatabaseConnection(connection, schemaName);
+		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
+		IDataSet data = dataSetBuilder.build(AnalyzerTest.class
+				.getResourceAsStream(dataSetFilename));
+		DatabaseOperation.CLEAN_INSERT.execute(db, data);
+	}
+	
+	@Test
+	public void outputFileIsCreated() throws IOException {
+		File outputFile = runAnalyzer();
+		assertTrue(outputFile.exists());
+	}
+
+	private File runAnalyzer() throws IOException {
+		File outputFile = File.createTempFile("analyzerOutput", null);
+		outputFile.delete();
+		sut.run(outputFile.getPath());
+		return outputFile;
+	}
+	
+	Matcher<Rule> isLikeRule(
+				Matcher<?> tableField,
+				Matcher<?> strategy, 
+				Matcher<?> dependants,
+				Matcher<?> potentialDependants,
+				Matcher<?> additionalInfo) {
+		return Matchers.<Rule>both(hasProperty("strategy", strategy))
+				.and(hasProperty("tableField", tableField))
+				.and(hasProperty("dependants", dependants))
+				.and(hasProperty("potentialDependants", potentialDependants))
+				.and(hasProperty("additionalInfo", additionalInfo));
+	}
+
+	Matcher<Rule> usesStrategy(
+				Matcher<?> strategy, 
+				Matcher<?> additionalInfo) {
+		return Matchers.<Rule>both(hasProperty("strategy", strategy))
+				.and(hasProperty("additionalInfo", additionalInfo));
+	}
+
+	Matcher<Rule> appliesStrategyTo(
+				Matcher<?> tableField, 
+				Matcher<?> strategy,
+				Matcher<?> additionalInfo) {
+		return Matchers.<Rule>both(hasProperty("strategy", strategy))
+				.and(hasProperty("tableField", tableField))
+				.and(hasProperty("additionalInfo", additionalInfo));
+	}
+	
+	@Test
+	public void deleteWrongCharwiseRule() throws Exception {
+		File outputFile = runAnalyzer();
+		Config newConfig = new Config();
+		newConfig.readFromFile(outputFile.getPath());
+		assertThat(newConfig.rules, not(hasItem(
+				usesStrategy(is("S"), is("XYZKPPPP")))));
+		assertThat(newConfig.rules, hasItem(
+				appliesStrategyTo(
+						equalTo(new TableField("VISITOR.SURNAME", config.schemaName)), 
+						is("P"), 
+						isEmptyString())));
+		assertThat(newConfig.rules, hasItem(
+				appliesStrategyTo(
+						equalTo(new TableField("VISITOR.ADDRESS", config.schemaName)), 
+						is("D"), 
+						isEmptyString())));
+		assertThat(newConfig.rules, hasSize(2));
+	}
+}

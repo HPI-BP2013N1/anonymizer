@@ -1,0 +1,14 @@
+# originalDB newDB transformationDB each with username password
+jdbc:h2:mem:original name pw
+jdbc:h2:mem:destination name pw
+jdbc:h2:mem:transformation name pw
+# schema batchSize
+ORIGINAL 10000
+
+- D: de.hpi.bp2013n1.anonymizer.SetDefaultStrategy
+- P: de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy
+- S: de.hpi.bp2013n1.anonymizer.CharacterStrategy
+
+VISITOR.SURNAME	P
+VISITOR.BIRTHDATE	S	XYZKPPPP
+VISITOR.ADDRESS	D
