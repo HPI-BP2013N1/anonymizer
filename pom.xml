@@ -24,7 +24,6 @@
   <modules>
   	<module>Anonymizer</module>
   	<module>Analyzer</module>
-  	<module>AnonymizerShared</module>
   </modules>
   <build>
     <plugins>
