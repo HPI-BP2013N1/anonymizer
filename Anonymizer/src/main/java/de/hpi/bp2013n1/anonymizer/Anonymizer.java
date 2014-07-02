@@ -98,7 +98,6 @@ public class Anonymizer {
 
 	public void connectAndRun() throws FatalError {
 		if (!connectDatabases()) {
-			anonymizerLogger.severe("Connection to Database failed.");
 			throw new FatalError();
 		}
 		run();
