@@ -263,7 +263,7 @@ public class Anonymizer {
 
 	protected static void setUpLogging(String logFilename) throws IOException {
 		System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] - %4$s: %5$s (%2$s)%n");
-		Logger logger = Logger.getLogger("hpi.bp2013n1");
+		Logger logger = Logger.getLogger("de.hpi.bp2013n1");
 		logFileHandler = new FileHandler(logFilename);
 		
 		logFormatter = new SimpleFormatter();		
