@@ -45,6 +45,7 @@ import com.google.common.collect.Multimap;
 
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.ColumnTypeNotSupportedException;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.FetchPseudonymsFailedException;
+import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedExection;
 import de.hpi.bp2013n1.anonymizer.db.BatchOperation;
 import de.hpi.bp2013n1.anonymizer.db.ColumnDatatypeDescription;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -150,6 +151,9 @@ public class Anonymizer {
 					anonymizerLogger.severe("An anonymization strategy does not "
 							+ "support the type of column to which the strategy "
 							+ "should be applied: " + e.getMessage());
+					throw new FatalError();
+				} catch (PreparationFailedExection e) {
+					anonymizerLogger.severe(e.getMessage());
 					throw new FatalError();
 				}
 		} catch (SQLException e) {
@@ -323,13 +327,14 @@ public class Anonymizer {
 	 * @throws TransformationTableCreationException
 	 * @throws TransformationKeyCreationException
 	 * @throws FetchPseudonymsFailedException
+	 * @throws PreparationFailedExection 
 	 * @throws SQLException
 	 * @throws Exception
 	 */
 	public void anonymize() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
-			ColumnTypeNotSupportedException {
+			ColumnTypeNotSupportedException, PreparationFailedExection {
 		anonymizerLogger.info("Started anonymizing.");
 		ArrayList<Constraint> constraints = disableAnonymizedDbConstraints();
 
@@ -611,7 +616,7 @@ public class Anonymizer {
 	private void prepareTransformations() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
-			ColumnTypeNotSupportedException {
+			ColumnTypeNotSupportedException, PreparationFailedExection {
 		anonymizerLogger.info("Preparing transformations.");
 		Multimap<String, Rule> rulesByStrategy = ArrayListMultimap.create();
 		for (Rule rule : config.rules) {

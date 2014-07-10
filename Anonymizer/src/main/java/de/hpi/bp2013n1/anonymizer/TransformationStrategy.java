@@ -36,6 +36,31 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
 public abstract class TransformationStrategy {
 	
+	public class PreparationFailedExection extends Exception {
+		private static final long serialVersionUID = 3972841187290919020L;
+
+		public PreparationFailedExection() {
+		}
+
+		public PreparationFailedExection(String arg0) {
+			super(arg0);
+		}
+
+		public PreparationFailedExection(Throwable arg0) {
+			super(arg0);
+		}
+
+		public PreparationFailedExection(String message, Throwable cause) {
+			super(message, cause);
+		}
+
+		public PreparationFailedExection(String message, Throwable cause,
+				boolean enableSuppression, boolean writableStackTrace) {
+			super(message, cause, enableSuppression, writableStackTrace);
+		}
+
+	}
+
 	public static class ColumnTypeNotSupportedException extends Exception {
 		private static final long serialVersionUID = -6729775852034148141L;
 
@@ -89,7 +114,8 @@ public abstract class TransformationStrategy {
 	abstract public void setUpTransformation(Collection<Rule> rules) 
 			throws FetchPseudonymsFailedException, 
 			TransformationKeyCreationException, 
-			TransformationTableCreationException, ColumnTypeNotSupportedException;
+			TransformationTableCreationException, ColumnTypeNotSupportedException,
+			PreparationFailedExection;
 
 	/**
 	 * 

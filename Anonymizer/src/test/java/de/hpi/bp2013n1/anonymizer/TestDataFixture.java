@@ -52,6 +52,13 @@ public class TestDataFixture implements AutoCloseable {
 		readConfigAndScope();
 		createDbConnections();
 	}
+	
+	public TestDataFixture(Config config, Scope scope)
+			throws ClassNotFoundException, IOException, SQLException {
+		this.config = config;
+		this.scope = scope;
+		createDbConnections();
+	}
 
 	public TestDataFixture(Connection originalDbConnection,
 			Connection destinationDbConnection,
@@ -69,7 +76,7 @@ public class TestDataFixture implements AutoCloseable {
 		scope.readFromURL(AnonymizerCompleteTest.class.getResource("testscope.txt"));
 	}
 
-	private void createDbConnections() throws IOException, Exception,
+	private void createDbConnections() throws IOException,
 			ClassNotFoundException, SQLException {
 		originalDbConnection = DatabaseConnector.connect(config.originalDB);
 		transformationDbConnection = DatabaseConnector.connect(config.transformationDB);
@@ -158,5 +165,13 @@ public class TestDataFixture implements AutoCloseable {
 	@Override
 	public void close() throws Exception {
 		closeConnections();
+	}
+
+	public static Config makeStubConfig() {
+		Config config = new Config();
+		config.originalDB.url = "jdbc:h2:mem:";
+		config.destinationDB.url = "jdbc:h2:mem:";
+		config.transformationDB.url = "jdbc:h2:mem:";
+		return config;
 	}
 }

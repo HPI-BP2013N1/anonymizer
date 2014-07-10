@@ -46,6 +46,8 @@ public class TableField {
 	}
 	
 	public String schemaTable(){
+		if (schema == null)
+			return table;
 		return (schema + "." + table);
 	}
 	
