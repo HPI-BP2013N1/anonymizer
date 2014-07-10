@@ -66,6 +66,40 @@ public class UniformDistributionStrategyTest {
 	public void testSetUpTransformation() throws PreparationFailedExection {
 		// TODO: implement
 	}
+	
+	@Test
+	public void testTransformIntegers() throws SQLException, TransformationKeyNotFoundException, PreparationFailedExection {
+		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
+			ddlStatement.executeUpdate("CREATE TABLE IntegerTable ("
+					+ "aColumn INT)");
+		}
+		testData.originalDbConnection.setAutoCommit(false);
+		try (PreparedStatement insertStatement = testData.originalDbConnection.prepareStatement(
+				"INSERT INTO IntegerTable (aColumn) VALUES (?)")) {
+			insertStatement.setInt(1, 1);
+			for (int i = 0; i < NUMBER_OF_A; i++)
+				insertStatement.addBatch();
+			insertStatement.setInt(1, 2);
+			for (int i = 0; i < NUMBER_OF_B; i++)
+				insertStatement.addBatch();
+			insertStatement.setInt(1, 3);
+			for (int i = 0; i < NUMBER_OF_C; i++)
+				insertStatement.addBatch();
+			insertStatement.executeBatch();
+			testData.originalDbConnection.commit();
+		} finally {
+			testData.originalDbConnection.setAutoCommit(true);
+		}
+		rule = new Rule();
+		rule.tableField = new TableField("IntegerTable.aColumn");
+		sut.setUpTransformation(Lists.newArrayList(rule));
+		
+		assertThat("All tuples from the smallest category should be retained",
+				Lists.newArrayList(sut.transform(2, rule, null)),
+				hasItems((Object) 2));
+		assertDeletedAndRetained(NUMBER_OF_A, NUMBER_OF_B, 1);
+		assertDeletedAndRetained(NUMBER_OF_C, NUMBER_OF_B, 3);
+	}
 
 	@Test
 	public void testTransform() throws SQLException, TransformationKeyNotFoundException {
