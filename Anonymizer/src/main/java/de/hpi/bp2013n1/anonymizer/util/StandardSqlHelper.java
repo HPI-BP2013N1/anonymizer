@@ -1,5 +1,10 @@
 package de.hpi.bp2013n1.anonymizer.util;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 /*
  * #%L
  * Anonymizer
@@ -55,6 +60,16 @@ public class StandardSqlHelper extends SQLHelper {
 	public String enableForeignKey(String qualifiedTableName, String constraintName) {
 		throw new UnsupportedOperationException(
 				"Disabling constraints is not standardized in SQL");
+	}
+
+	@Override
+	public Object takeConstant(Connection connection, String expression) throws SQLException {
+		try (PreparedStatement selectStatement = connection.prepareStatement(
+				"SELECT " + expression);
+				ResultSet resultSet = selectStatement.executeQuery()) {
+			resultSet.next();
+			return resultSet.getObject(1);
+		}
 	}
 
 }

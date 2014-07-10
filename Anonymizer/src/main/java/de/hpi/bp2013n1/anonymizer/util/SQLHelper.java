@@ -88,5 +88,13 @@ public abstract class SQLHelper {
 		return getHelperFor(connection).enableForeignKey(qualifiedTableName,
 				constraintName);
 	}
+	
+	public abstract Object takeConstant(Connection connection, String expression) throws SQLException;
+	
+	public static Object selectConstant(Connection connection,
+			String expression) throws SQLException {
+		return getHelperFor(connection).takeConstant(connection, expression);
+	}
+	
 
 }

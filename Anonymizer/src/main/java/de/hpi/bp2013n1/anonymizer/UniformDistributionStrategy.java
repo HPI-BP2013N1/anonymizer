@@ -8,10 +8,12 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.TableRuleMap;
+import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 
 public class UniformDistributionStrategy extends TransformationStrategy {
 	
@@ -38,6 +40,9 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 	private void setUpTransformation(Rule rule)
 			throws PreparationFailedExection {
 		String column = rule.getTableField().column;
+		if (!Strings.isNullOrEmpty(rule.additionalInfo)) {
+			column = rule.additionalInfo.replace("...", column);
+		}
 		ColumnValueParameters valueParameters = new ColumnValueParameters();
 		try (PreparedStatement groupByStatement = originalDatabase.prepareStatement(
 				"SELECT COUNT(*), " + column + " FROM " 
@@ -61,11 +66,15 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 
 	@Override
 	public Iterable<?> transform(Object oldValue, Rule rule,
-			ResultSetRowReader row) {
+			ResultSetRowReader row) throws SQLException {
+		Object value = oldValue;
+		if (!Strings.isNullOrEmpty(rule.additionalInfo))
+			value = SQLHelper.selectConstant(originalDatabase,
+					rule.additionalInfo.replace("...", "'" + oldValue.toString() + "'"));
 		ColumnValueParameters valueParameters = columnValueParameters.get(rule);
-		Integer currentCount = valueParameters.existingCardinalities.get(oldValue);
+		Integer currentCount = valueParameters.existingCardinalities.get(value);
 		if (currentCount > valueParameters.targetCardinality) {
-			valueParameters.existingCardinalities.put(oldValue, --currentCount);
+			valueParameters.existingCardinalities.put(value, --currentCount);
 			return Lists.newArrayList();
 		}
 		return Lists.newArrayList(oldValue);

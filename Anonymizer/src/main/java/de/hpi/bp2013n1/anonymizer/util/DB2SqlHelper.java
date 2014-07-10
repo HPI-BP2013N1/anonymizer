@@ -1,5 +1,10 @@
 package de.hpi.bp2013n1.anonymizer.util;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
 /*
  * #%L
  * Anonymizer
@@ -45,6 +50,16 @@ public class DB2SqlHelper extends StandardSqlHelper {
 	@Override
 	public String truncateTable(String qualifiedTableName) {
 		return String.format("TRUNCATE TABLE %s IMMEDIATE", qualifiedTableName);
+	}
+
+	@Override
+	public Object takeConstant(Connection connection, String expression) throws SQLException {
+		try (PreparedStatement selectStatement = connection.prepareStatement(
+				"SELECT " + expression + " FROM SYSIBM.SYSDUMMY1");
+				ResultSet resultSet = selectStatement.executeQuery()) {
+			resultSet.next();
+			return resultSet.getObject(1);
+		}
 	}
 
 }

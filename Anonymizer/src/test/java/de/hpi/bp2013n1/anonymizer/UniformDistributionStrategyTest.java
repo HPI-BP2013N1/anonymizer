@@ -36,30 +36,9 @@ public class UniformDistributionStrategyTest {
 		sut = new UniformDistributionStrategy(null,
 				testData.originalDbConnection,
 				testData.transformationDbConnection);
-		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
-			ddlStatement.executeUpdate("CREATE TABLE aTable ("
-					+ "aColumn VARCHAR(20))");
-		}
-		testData.originalDbConnection.setAutoCommit(false);
-		try (PreparedStatement insertStatement = testData.originalDbConnection.prepareStatement(
-				"INSERT INTO aTable (aColumn) VALUES (?)")) {
-			insertStatement.setString(1, "A");
-			for (int i = 0; i < NUMBER_OF_A; i++)
-				insertStatement.addBatch();
-			insertStatement.setString(1, "B");
-			for (int i = 0; i < NUMBER_OF_B; i++)
-				insertStatement.addBatch();
-			insertStatement.setString(1, "C");
-			for (int i = 0; i < NUMBER_OF_C; i++)
-				insertStatement.addBatch();
-			insertStatement.executeBatch();
-			testData.originalDbConnection.commit();
-		} finally {
-			testData.originalDbConnection.setAutoCommit(true);
-		}
+		
 		rule = new Rule();
 		rule.tableField = new TableField("aTable.aColumn");
-		sut.setUpTransformation(Lists.newArrayList(rule));
 	}
 
 	@Test
@@ -102,10 +81,32 @@ public class UniformDistributionStrategyTest {
 	}
 
 	@Test
-	public void testTransform() throws SQLException, TransformationKeyNotFoundException {
+	public void testTransform() throws SQLException, TransformationKeyNotFoundException, PreparationFailedExection {
+		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
+			ddlStatement.executeUpdate("CREATE TABLE aTable ("
+					+ "aColumn VARCHAR(20))");
+		}
+		testData.originalDbConnection.setAutoCommit(false);
+		try (PreparedStatement insertStatement = testData.originalDbConnection.prepareStatement(
+				"INSERT INTO aTable (aColumn) VALUES (?)")) {
+			insertStatement.setString(1, "A");
+			for (int i = 0; i < NUMBER_OF_A; i++)
+				insertStatement.addBatch();
+			insertStatement.setString(1, "B");
+			for (int i = 0; i < NUMBER_OF_B; i++)
+				insertStatement.addBatch();
+			insertStatement.setString(1, "C");
+			for (int i = 0; i < NUMBER_OF_C; i++)
+				insertStatement.addBatch();
+			insertStatement.executeBatch();
+			testData.originalDbConnection.commit();
+		} finally {
+			testData.originalDbConnection.setAutoCommit(true);
+		}
+		sut.setUpTransformation(Lists.newArrayList(rule));
 		assertThat("All tuples from the smallest category should be retained",
 				Lists.newArrayList(sut.transform("B", rule, null)),
-				hasItems((Object) "B"));
+				contains((Object) "B"));
 		assertDeletedAndRetained(NUMBER_OF_A, NUMBER_OF_B, "A");
 		assertDeletedAndRetained(NUMBER_OF_C, NUMBER_OF_B, "C");
 	}
@@ -122,7 +123,57 @@ public class UniformDistributionStrategyTest {
 					sut.transform(oldValue, rule, null),
 					contains(equalTo(oldValue)));
 	}
+	
+	private void assertNumberDeletedAndRetained(int previousNumber,
+			int targetNumber, String oldPrefix) throws SQLException,
+			TransformationKeyNotFoundException {
+		for (int i = 0; i < previousNumber - targetNumber; i++)
+			assertThat("First occurences of larger categories should be deleted",
+					sut.transform(oldPrefix+i, rule, null), 
+					emptyIterable());
+		for (int i = previousNumber - targetNumber; i < previousNumber; i++)
+			assertThat("Later occurences of larger categories should be retained",
+					sut.transform(oldPrefix+i, rule, null),
+					contains(equalTo((Object) (oldPrefix+i))));
+	}
 
+	@Test
+	public void testSubstringTransform() throws SQLException, PreparationFailedExection, TransformationKeyNotFoundException {
+		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
+			ddlStatement.executeUpdate("CREATE TABLE aTable ("
+					+ "aColumn VARCHAR(20))");
+		}
+		testData.originalDbConnection.setAutoCommit(false);
+		try (PreparedStatement insertStatement = testData.originalDbConnection.prepareStatement(
+				"INSERT INTO aTable (aColumn) VALUES (?)")) {
+			for (int i = 0; i < NUMBER_OF_A; i++) {
+				insertStatement.setString(1, "A"+i);
+				insertStatement.addBatch();
+			}
+			for (int i = 0; i < NUMBER_OF_B; i++) {
+				insertStatement.setString(1, "B"+i);
+				insertStatement.addBatch();
+			}
+			for (int i = 0; i < NUMBER_OF_C; i++) {
+				insertStatement.setString(1, "C"+i);
+				insertStatement.addBatch();
+			}
+			insertStatement.executeBatch();
+			testData.originalDbConnection.commit();
+		} finally {
+			testData.originalDbConnection.setAutoCommit(true);
+		}
+		rule.additionalInfo = "SUBSTR(..., 1, 1)";
+		sut.setUpTransformation(Lists.newArrayList(rule));
+		
+		assertThat("All tuples from the smallest category should be retained",
+				Lists.newArrayList(sut.transform("B0", rule, null)),
+				contains((Object) "B0"));
+		assertNumberDeletedAndRetained(NUMBER_OF_A, NUMBER_OF_B, "A");
+		assertNumberDeletedAndRetained(NUMBER_OF_C, NUMBER_OF_B, "C");
+	}
+
+	
 	@Test
 	public void testPrepareTableTransformation() {
 		// TODO: implement
