@@ -30,6 +30,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.logging.FileHandler;
@@ -74,6 +75,7 @@ public class Anonymizer {
 	private static FileHandler logFileHandler;
 	private static SimpleFormatter logFormatter;
 	private int currentTableNumber;
+	private RowRetainService retainService;
 	
 	public static class TableNotInScopeException extends Exception {
 		private static final long serialVersionUID = -4527921975005958468L;
@@ -95,6 +97,10 @@ public class Anonymizer {
 	public Anonymizer(Config config, Scope scope) {
 		this.config = config;
 		this.scope = scope;
+	}
+
+	public RowRetainService getRetainService() {
+		return retainService;
 	}
 
 	public void connectAndRun() throws FatalError {
@@ -204,6 +210,7 @@ public class Anonymizer {
 			e.printStackTrace();
 			return false;
 		}
+		retainService = new RowRetainService(originalDatabase, transformationDB);
 		return true;
 	}
 	
@@ -214,6 +221,7 @@ public class Anonymizer {
 		originalDatabase = originalDbConnection;
 		anonymizedDatabase = destinationDbConnection;
 		transformationDB = transformationDbConnection;
+		retainService = new RowRetainService(originalDatabase, transformationDB);
 	}
 
 	/**
@@ -467,8 +475,8 @@ public class Anonymizer {
 				preparedSQLQueryBuilder.toString())) {
 			int processedRowsCount = 0;
 			while (!rs.isClosed() && rs.next()) { // for all rows
-				copyAndAnonymizeRow(tableRuleMap, rsMeta, columnCount, rowReader,
-						anonymizedDatabaseStatement);
+				copyAndAnonymizeRow(tableRuleMap, qualifiedTableName, rsMeta,
+						columnCount, rowReader, anonymizedDatabaseStatement);
 				processedRowsCount++;
 				if ((processedRowsCount % config.batchSize) == 0) {
 					BatchOperation.executeAndCommit(anonymizedDatabaseStatement);
@@ -491,8 +499,10 @@ public class Anonymizer {
 	}
 
 	private void copyAndAnonymizeRow(TableRuleMap tableRuleMap,
-			ResultSetMetaData rsMeta, int columnCount, ResultSetRowReader rowReader,
+			String qualifiedTableName, ResultSetMetaData rsMeta,
+			int columnCount, ResultSetRowReader rowReader,
 			PreparedStatement anonymizedDatabaseStatement) throws SQLException {
+		boolean retainRow = false;
 		List<Iterable<?>> columnValues = new ArrayList<>(columnCount);
 		for (int j = 1; j <= columnCount; j++) { // for all columns
 			String columnName = rsMeta.getColumnName(j);
@@ -501,18 +511,35 @@ public class Anonymizer {
 				// fetch translations
 				Iterable<?> currentValues = Lists.newArrayList(rowReader.getObject(j));
 				for (Rule configRule : appliedRules) {
-					Iterable<Object> newValues = new ArrayList<>();
-					for (Object newValue : currentValues)
-						newValues = Iterables.concat(newValues, Lists.newArrayList(
-								anonymizeValue(configRule, rowReader, j,
-										columnName, tableRuleMap, newValue)));
+					Iterable<Object> newValues = Collections.emptyList();
+					for (Object intermediateValue : currentValues) {
+						Iterable<?> transformationResults = anonymizeValue(
+								intermediateValue, configRule, rowReader, j,
+								columnName, tableRuleMap);
+						newValues = Iterables.concat(newValues, 
+								transformationResults);
+					}
+					if (!currentValues.iterator().hasNext()) {
+						if (retainRow 
+								|| retainService.currentRowShouldBeRetained(
+										configRule.tableField.schema, 
+										configRule.tableField.table,
+										rowReader)) {
+							// skip this transformation which deleted the tuple
+							anonymizerLogger.info(
+									"Not deleting a row in " 
+											+ qualifiedTableName + " because it "
+											+ "was previously marked to be "
+											+ "retained.");
+							retainRow = true;
+							continue;
+						}
+						// if a Strategy returned an empty transformation, the
+						// cross product of all column values will be empty,
+						// the original tuple is lost
+						return;
+					}
 					currentValues = newValues;
-				}
-				if (!currentValues.iterator().hasNext()) {
-					// if a Strategy returned an empty transformation, the cross
-					// product of all column values will be empty, 
-					// the original tuple is lost
-					return;
 				}
 				columnValues.add(currentValues); 
 			} else {
@@ -555,9 +582,9 @@ public class Anonymizer {
 		}
 	}
 
-	private Iterable<?> anonymizeValue(Rule configRule,
-			ResultSetRowReader rowReader, int columnIndex, String columnName,
-			TableRuleMap tableRules, Object currentValue) throws SQLException {
+	private Iterable<?> anonymizeValue(Object currentValue,
+			Rule configRule, ResultSetRowReader rowReader, int columnIndex,
+			String columnName, TableRuleMap tableRules) throws SQLException {
 		TransformationStrategy strategy;
 		strategy = getStrategyFor(configRule);
 		try {

@@ -96,5 +96,12 @@ public abstract class SQLHelper {
 		return getHelperFor(connection).takeConstant(connection, expression);
 	}
 	
+	public abstract void createSchema(Connection connection, String schema) 
+			throws SQLException;
 
+	public static void createSchema(String schema, Connection connection) 
+			throws SQLException {
+		getHelperFor(connection).createSchema(connection, schema);
+	}
+	
 }

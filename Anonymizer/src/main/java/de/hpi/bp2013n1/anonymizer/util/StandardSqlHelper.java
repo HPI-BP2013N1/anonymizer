@@ -4,6 +4,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 /*
  * #%L
@@ -69,6 +70,13 @@ public class StandardSqlHelper extends SQLHelper {
 				ResultSet resultSet = selectStatement.executeQuery()) {
 			resultSet.next();
 			return resultSet.getObject(1);
+		}
+	}
+
+	@Override
+	public void createSchema(Connection connection, String schema) throws SQLException {
+		try (Statement createSchema = connection.createStatement()) {
+			createSchema.executeUpdate("CREATE SCHEMA \"" + schema + "\"");
 		}
 	}
 

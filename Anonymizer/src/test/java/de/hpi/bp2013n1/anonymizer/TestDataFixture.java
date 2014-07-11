@@ -163,7 +163,7 @@ public class TestDataFixture implements AutoCloseable {
 	}
 
 	@Override
-	public void close() throws Exception {
+	public void close() throws SQLException {
 		closeConnections();
 	}
 
