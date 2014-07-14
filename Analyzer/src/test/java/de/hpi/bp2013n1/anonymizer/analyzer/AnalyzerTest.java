@@ -29,8 +29,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.List;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.DatabaseConnection;
@@ -45,7 +47,9 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer;
+import com.google.common.collect.Lists;
+
+import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
@@ -145,12 +149,12 @@ public class AnalyzerTest {
 	}
 	
 	@Test
-	public void outputFileIsCreated() throws IOException {
+	public void outputFileIsCreated() throws IOException, FatalError {
 		File outputFile = runAnalyzer();
 		assertTrue(outputFile.exists());
 	}
 
-	private File runAnalyzer() throws IOException {
+	private File runAnalyzer() throws IOException, FatalError {
 		File outputFile = File.createTempFile("analyzerOutput", null);
 		outputFile.delete();
 		sut.run(outputFile.getPath());
@@ -204,5 +208,69 @@ public class AnalyzerTest {
 						is("D"), 
 						isEmptyString())));
 		assertThat(newConfig.rules, hasSize(2));
+	}
+	
+	@Test
+	public void existingDependantsValidation() throws SQLException {
+		Rule validatedRule = new Rule(
+				new TableField("VISITOR.SURNAME", config.schemaName), "P", "");
+		validatedRule.dependants.add(
+				new TableField("doesnot.exist", config.schemaName));
+		validatedRule.dependants.add(
+				new TableField("doesnot.existeither", config.schemaName));
+		TableField firstValidDependant = 
+				new TableField("VISIT.VISITORSURNAME", config.schemaName);
+		validatedRule.dependants.add(firstValidDependant);
+		validatedRule.dependants.add(
+				new TableField("another.fool", config.schemaName));
+		TableField secondValidDependant = 
+				new TableField("VISITOR.NAME", config.schemaName);
+		validatedRule.dependants.add(secondValidDependant); // not useful but valid
+		sut.validateExistingDependants(validatedRule, 
+				originalDbConnection.getMetaData());
+		assertThat(validatedRule.dependants, 
+				contains(firstValidDependant, secondValidDependant));
+	}
+	
+	TableField tableField(String tableColumn) {
+		return new TableField(tableColumn, config.schemaName);
+	}
+	
+	@Test
+	public void foreignKeyDependantsTest() throws SQLException {
+		DatabaseMetaData metaData = originalDbConnection.getMetaData();
+		TableField originField = tableField("VISITOR.NAME");
+		Rule plainRule = new Rule(originField, "P", "");
+		sut.findDependantsByForeignKeys(plainRule, metaData);
+		TableField dependentField = tableField("VISIT.VISITORNAME");
+		assertThat(plainRule.dependants, contains(dependentField));
+		Rule fullRule = new Rule(originField, "P", "", 
+				Lists.newArrayList(dependentField));
+		sut.findDependantsByForeignKeys(fullRule, metaData);
+		assertThat(fullRule.dependants, contains(dependentField));
+		// TODO: test higher-order (transitive) foreign key dependencies 
+		// i.e. A -> B -> C implies A -> C
+	}
+	
+	@Test
+	public void possibleDependantsTest() throws SQLException {
+		DatabaseMetaData metaData = originalDbConnection.getMetaData();
+		TableField originField = tableField("VISITOR.NAME");
+		TableField dependentField = tableField("VISIT.VISITORNAME");
+		List<TableField> matchingFields = Lists.newArrayList(
+				tableField("VISITOR.SURNAME"),
+				dependentField,
+				tableField("VISIT.VISITORSURNAME"));
+		List<TableField> matchingButIndependentFields = Lists.newArrayList(matchingFields);
+		matchingButIndependentFields.remove(dependentField);
+		Rule plainRule = new Rule(originField, "P", "");
+		sut.findPossibleDependantsByName(plainRule, metaData);
+		assertThat(plainRule.potentialDependants,
+				containsInAnyOrder(matchingFields.toArray()));
+		Rule fullRule = new Rule(originField, "P", "", 
+				Lists.newArrayList(dependentField));
+		sut.findPossibleDependantsByName(fullRule, metaData);
+		assertThat(fullRule.potentialDependants,
+				containsInAnyOrder(matchingButIndependentFields.toArray()));
 	}
 }

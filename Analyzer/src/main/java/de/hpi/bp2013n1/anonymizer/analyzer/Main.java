@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.util.logging.Logger;
 
+import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
@@ -78,7 +79,8 @@ public class Main {
 			
 			analyzer = new Analyzer(con, config, scope);
 			analyzer.run(args[2]);
-			
+		} catch (FatalError e) {
+			logger.severe("Cannot recover from previous error, exiting.");
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
