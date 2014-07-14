@@ -94,7 +94,9 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 					rule.additionalInfo.replace("...", "'" + oldValue.toString() + "'"));
 		ColumnValueParameters valueParameters = columnValueParameters.get(rule);
 		Integer currentCount = valueParameters.existingCardinalities.get(value);
-		if (currentCount > valueParameters.targetCardinality) {
+		if (currentCount > valueParameters.targetCardinality
+				&& !anonymizer.getRetainService().currentRowShouldBeRetained(
+						row.getCurrentSchema(), row.getCurrentTable(), row)) {
 			valueParameters.existingCardinalities.put(value, --currentCount);
 			return Lists.newArrayList();
 		}

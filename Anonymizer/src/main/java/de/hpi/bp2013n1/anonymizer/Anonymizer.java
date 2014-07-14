@@ -471,6 +471,8 @@ public class Anonymizer {
 		preparedSQLQueryBuilder.append("?)");			
 		
 		ResultSetRowReader rowReader = new ResultSetRowReader(rs);
+		rowReader.setCurrentTable(tableRuleMap.tableName);
+		rowReader.setCurrentSchema(config.schemaName);
 		try (PreparedStatement anonymizedDatabaseStatement = anonymizedDatabase.prepareStatement(
 				preparedSQLQueryBuilder.toString())) {
 			int processedRowsCount = 0;

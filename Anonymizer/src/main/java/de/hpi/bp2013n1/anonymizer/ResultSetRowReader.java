@@ -44,6 +44,24 @@ import java.sql.Timestamp;
  */
 public class ResultSetRowReader {
 	ResultSet resultSet;
+	String currentSchema;
+	String currentTable;
+	
+	public String getCurrentTable() {
+		return currentTable;
+	}
+
+	public void setCurrentTable(String currentTable) {
+		this.currentTable = currentTable;
+	}
+
+	public String getCurrentSchema() {
+		return currentSchema;
+	}
+
+	public void setCurrentSchema(String schema) {
+		currentSchema = schema;
+	}
 	
 	public ResultSetRowReader(ResultSet resultSet) {
 		this.resultSet = resultSet;

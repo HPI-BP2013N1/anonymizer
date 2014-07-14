@@ -23,6 +23,7 @@ package de.hpi.bp2013n1.anonymizer;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -30,6 +31,8 @@ import java.sql.Statement;
 
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.ArgumentMatcher;
+import org.mockito.Mockito;
 
 import com.google.common.collect.Lists;
 
@@ -48,15 +51,19 @@ public class UniformDistributionStrategyTest {
 	private UniformDistributionStrategy sut;
 	private TestDataFixture testData;
 	private Rule rule;
+	private Anonymizer anonymizerMock = Mockito.mock(Anonymizer.class);
+	private RowRetainService retainServiceMock;
 
 	@Before
 	public void createSubjectUnderTest() throws Exception {
 		Config stubConfig = TestDataFixture.makeStubConfig();
 		Scope scope = new Scope();
 		testData = new TestDataFixture(stubConfig, scope);
-		sut = new UniformDistributionStrategy(null,
+		sut = new UniformDistributionStrategy(anonymizerMock,
 				testData.originalDbConnection,
 				testData.transformationDbConnection);
+		retainServiceMock = Mockito.mock(RowRetainService.class);
+		when(anonymizerMock.getRetainService()).thenReturn(retainServiceMock);
 		
 		rule = new Rule();
 		rule.tableField = new TableField("aTable.aColumn");
@@ -133,29 +140,36 @@ public class UniformDistributionStrategyTest {
 	}
 
 	private void assertDeletedAndRetained(int previousNumber,
-			int targetNumber, Object oldValue) throws SQLException,
-			TransformationKeyNotFoundException {
+			int targetNumber, Object oldValue) throws SQLException {
+		ResultSetRowReader rowReaderMock = mock(ResultSetRowReader.class);
+		when(rowReaderMock.getCurrentTable()).thenReturn("aTable");
+		when(rowReaderMock.getObject("aColumn")).thenReturn(oldValue);
 		for (int i = 0; i < previousNumber - targetNumber; i++)
 			assertThat("First occurences of larger categories should be deleted",
-					sut.transform(oldValue, rule, null), 
+					sut.transform(oldValue, rule, rowReaderMock), 
 					emptyIterable());
 		for (int i = previousNumber - targetNumber; i < previousNumber; i++)
 			assertThat("Later occurences of larger categories should be retained",
-					sut.transform(oldValue, rule, null),
+					sut.transform(oldValue, rule, rowReaderMock),
 					contains(equalTo(oldValue)));
 	}
 	
 	private void assertNumberDeletedAndRetained(int previousNumber,
-			int targetNumber, String oldPrefix) throws SQLException,
-			TransformationKeyNotFoundException {
-		for (int i = 0; i < previousNumber - targetNumber; i++)
+			int targetNumber, String oldPrefix) throws SQLException {
+		ResultSetRowReader rowReaderMock = mock(ResultSetRowReader.class);
+		when(rowReaderMock.getCurrentTable()).thenReturn("aTable");
+		for (int i = 0; i < previousNumber - targetNumber; i++) {
+			when(rowReaderMock.getObject("aColumn")).thenReturn(oldPrefix+i);
 			assertThat("First occurences of larger categories should be deleted",
-					sut.transform(oldPrefix+i, rule, null), 
+					sut.transform(oldPrefix+i, rule, rowReaderMock), 
 					emptyIterable());
-		for (int i = previousNumber - targetNumber; i < previousNumber; i++)
+		}
+		for (int i = previousNumber - targetNumber; i < previousNumber; i++) {
+			when(rowReaderMock.getObject("aColumn")).thenReturn(oldPrefix+i);
 			assertThat("Later occurences of larger categories should be retained",
-					sut.transform(oldPrefix+i, rule, null),
+					sut.transform(oldPrefix+i, rule, rowReaderMock),
 					contains(equalTo((Object) (oldPrefix+i))));
+		}
 	}
 
 	@Test
@@ -192,6 +206,95 @@ public class UniformDistributionStrategyTest {
 				contains((Object) "B0"));
 		assertNumberDeletedAndRetained(NUMBER_OF_A, NUMBER_OF_B, "A");
 		assertNumberDeletedAndRetained(NUMBER_OF_C, NUMBER_OF_B, "C");
+	}
+	
+	@Test
+	public void testRetainedRowsHandling() throws SQLException, PreparationFailedExection, TransformationKeyNotFoundException {
+		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
+			ddlStatement.executeUpdate("CREATE TABLE aTable ("
+					+ "aColumn VARCHAR(20), otherColumn INT, "
+					+ "PRIMARY KEY (aColumn, otherColumn))");
+		}
+		testData.originalDbConnection.setAutoCommit(false);
+		try (PreparedStatement insertStatement = testData.originalDbConnection.prepareStatement(
+				"INSERT INTO aTable (aColumn, otherColumn) VALUES (?, ?)")) {
+			insertStatement.setString(1, "A");
+			for (int i = 0; i < NUMBER_OF_A; i++) {
+				insertStatement.setInt(2, i);
+				insertStatement.addBatch();
+			}
+			insertStatement.setString(1, "B");
+			for (int i = 0; i < NUMBER_OF_B; i++) {
+				insertStatement.setInt(2, i);
+				insertStatement.addBatch();
+			}
+			insertStatement.setString(1, "C");
+			for (int i = 0; i < NUMBER_OF_C; i++) {
+				insertStatement.setInt(2, i);
+				insertStatement.addBatch();
+			}
+			insertStatement.executeBatch();
+			testData.originalDbConnection.commit();
+		} finally {
+			testData.originalDbConnection.setAutoCommit(true);
+		}
+		int retainedColumnValue = 0;
+		when(retainServiceMock.currentRowShouldBeRetained(anyString(), 
+				eq("aTable"), 
+				argThat(new ResultSetRowReaderMatcher(
+						"otherColumn", retainedColumnValue))))
+				.thenReturn(true);
+		sut.setUpTransformation(Lists.newArrayList(rule));
+		assertThat("All tuples from the smallest category should be retained",
+				Lists.newArrayList(sut.transform("B", rule, null)),
+				contains((Object) "B"));
+		ResultSetRowReader rowReaderMock = mock(ResultSetRowReader.class);
+		when(rowReaderMock.getObject("aColumn")).thenReturn("A");
+		when(rowReaderMock.getObject("otherColumn")).thenReturn(retainedColumnValue);
+		when(rowReaderMock.getCurrentTable()).thenReturn("aTable");
+		assertThat("Retained rows must not be deleted",
+				sut.transform("A", rule, rowReaderMock),
+				contains(equalTo((Object) "A")));
+		int numberOfKeptRows = 0;
+		for (int i = 0; i < NUMBER_OF_A; i++) {
+			when(rowReaderMock.getObject("otherColumn")).thenReturn(i);
+			if (sut.transform("A", rule, rowReaderMock).iterator().hasNext()) {
+				numberOfKeptRows++;
+			}
+		}
+		assertThat("if a row should be retained another one should be deleted instead",
+				numberOfKeptRows, is(NUMBER_OF_B));
+		numberOfKeptRows = 0;
+		for (int i = 0; i < NUMBER_OF_C; i++) {
+			when(rowReaderMock.getObject("otherColumn")).thenReturn(i);
+			if (sut.transform("C", rule, rowReaderMock).iterator().hasNext()) {
+				numberOfKeptRows++;
+			}
+		}
+		assertThat("if a row should be retained another one should be deleted instead",
+				numberOfKeptRows, is(NUMBER_OF_B));
+	}
+	
+	static class ResultSetRowReaderMatcher extends ArgumentMatcher<ResultSetRowReader> {
+		private String column;
+		private Object matchValue;
+		
+		public ResultSetRowReaderMatcher(String column, Object matchValue) {
+			this.column = column;
+			this.matchValue = matchValue;
+		}
+		
+		@Override
+		public boolean matches(Object argument) {
+			ResultSetRowReader rowReader = (ResultSetRowReader) argument;
+			try {
+				return rowReader.getObject(column).equals(matchValue);
+			} catch (SQLException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			return false;
+		}
 	}
 
 	
