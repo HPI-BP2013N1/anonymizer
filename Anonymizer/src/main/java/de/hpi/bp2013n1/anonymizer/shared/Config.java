@@ -38,6 +38,17 @@ import java.util.regex.Pattern;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class Config {
+	public static class DependantWithoutRuleException extends Exception {
+		public DependantWithoutRuleException() {
+			super();
+		}
+
+		public DependantWithoutRuleException(String message) {
+			super(message);
+		}
+
+		private static final long serialVersionUID = 1307243018122412272L;
+	}
 	public class ConnectionParameters {
 		public String url;
 		public String user;
@@ -53,7 +64,7 @@ public class Config {
 	
 	private static Logger configLogger = Logger.getLogger(Config.class.getName());
 	
-	public void readFromFile(String filename) throws IOException, Exception {		
+	public void readFromFile(String filename) throws DependantWithoutRuleException, IOException {		
 		File file = new File(filename);
 		FileReader fr = new FileReader(file);
 		try (BufferedReader reader = new BufferedReader(fr)) {
@@ -61,7 +72,7 @@ public class Config {
 		}
 	}
 	
-	public void readFromURL(URL url) throws Exception {
+	public void readFromURL(URL url) throws DependantWithoutRuleException, IOException {
 		try (InputStream inputStream = url.openStream();
 				InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
 				BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
@@ -69,9 +80,12 @@ public class Config {
 		}
 	}
 	
-	public void read(BufferedReader reader) throws Exception {
+	public void read(BufferedReader reader)
+			throws DependantWithoutRuleException, IOException {
 		String line;
 		readHeader(reader);
+		Pattern keyValuePattern = Pattern.compile(
+				"\\s*-\\s*(\\w+)\\s*:\\s*([\\w.]+)");
 		while (true) {
 			line = reader.readLine();
 			if(line == null) break;
@@ -79,8 +93,6 @@ public class Config {
 			if(line.matches("\\s*")) continue;
 			
 			if (line.trim().startsWith("-")) {
-				Pattern keyValuePattern = Pattern.compile(
-						"\\s*-\\s*(\\w+)\\s*:\\s*([\\w.]+)");
 				Matcher matcher = keyValuePattern.matcher(line);
 				if (!matcher.matches())
 					continue;
@@ -88,28 +100,37 @@ public class Config {
 				String strategyClassName = matcher.group(2);
 				strategyMapping.put(strategyName, strategyClassName);
 			} else if (line.matches("\\s+.*")) { // it's a dependant
-				if (rules.size() > 0) {
-					TableField newField = new TableField(
-							line.split("#")[0].replaceAll("\\s+", ""), schemaName);
-					rules.get(rules.size() - 1).dependants.add(newField);
-				} else {
-					throw new Exception("Dependant without rule");
-				}						
+				readDependant(line);
 			} else { // it's a new rule
-				String[] split = line.split("\\s+");
-
-				Rule newRule = new Rule();
-				newRule.tableField = new TableField(split[0], schemaName);
-				newRule.strategy = split[1];
-				
-				newRule.additionalInfo = "";
-				if(split.length > 2)
-					if(!split[2].startsWith("#"))
-						newRule.additionalInfo = split[2];
-				
-				rules.add(newRule);
+				readNewRule(line);
 			}
 		}
+	}
+
+	void readDependant(String line) throws DependantWithoutRuleException {
+		if (rules.size() > 0) {
+			TableField newField = new TableField(
+					line.split("#")[0].replaceAll("\\s+", ""), schemaName);
+			rules.get(rules.size() - 1).dependants.add(newField);
+		} else {
+			throw new DependantWithoutRuleException("Dependant "
+					+ line.trim() + " is not attached to a rule");
+		}
+	}
+
+	void readNewRule(String line) {
+		String[] split = line.split("\\s+", 3);
+
+		Rule newRule = new Rule();
+		newRule.tableField = new TableField(split[0], schemaName);
+		newRule.strategy = split[1];
+		
+		newRule.additionalInfo = "";
+		if(split.length > 2)
+			if(!split[2].startsWith("#"))
+				newRule.additionalInfo = split[2];
+		
+		rules.add(newRule);
 	}
 	
 	

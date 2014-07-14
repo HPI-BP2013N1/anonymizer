@@ -34,7 +34,24 @@ public class Rule {
 	public String strategy;
 	public ArrayList<TableField> dependants = new ArrayList<TableField>();
 	public ArrayList<TableField> potentialDependants = new ArrayList<TableField>();
-	public String additionalInfo;
+	public String additionalInfo = "";
+
+	public Rule() {
+	}
+	
+	public Rule(TableField tableField, String strategy, String additionalInfo) {
+		this.tableField = tableField;
+		this.strategy = strategy;
+		this.additionalInfo = additionalInfo;
+	}
+	
+	public Rule(TableField tableField, String strategy, String additionalInfo,
+			ArrayList<TableField> dependants) {
+		this.tableField = tableField;
+		this.strategy = strategy;
+		this.dependants = dependants;
+		this.additionalInfo = additionalInfo;
+	}
 
 	public TableField getTableField() {
 		return tableField;
@@ -56,4 +73,52 @@ public class Rule {
 	public String toString() {
 		return tableField + " " + strategy + " " + additionalInfo;
 	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result
+				+ ((additionalInfo == null) ? 0 : additionalInfo.hashCode());
+		result = prime * result
+				+ ((dependants == null) ? 0 : dependants.hashCode());
+		result = prime * result
+				+ ((strategy == null) ? 0 : strategy.hashCode());
+		result = prime * result
+				+ ((tableField == null) ? 0 : tableField.hashCode());
+		return result;
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Rule other = (Rule) obj;
+		if (additionalInfo == null) {
+			if (other.additionalInfo != null)
+				return false;
+		} else if (!additionalInfo.equals(other.additionalInfo))
+			return false;
+		if (dependants == null) {
+			if (other.dependants != null)
+				return false;
+		} else if (!dependants.equals(other.dependants))
+			return false;
+		if (strategy == null) {
+			if (other.strategy != null)
+				return false;
+		} else if (!strategy.equals(other.strategy))
+			return false;
+		if (tableField == null) {
+			if (other.tableField != null)
+				return false;
+		} else if (!tableField.equals(other.tableField))
+			return false;
+		return true;
+	}
+
 }
