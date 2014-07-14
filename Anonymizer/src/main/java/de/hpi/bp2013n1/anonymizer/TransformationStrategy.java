@@ -60,6 +60,32 @@ public abstract class TransformationStrategy {
 		}
 
 	}
+	
+	public static class TransformationFailedException extends Exception {
+		public TransformationFailedException() {
+			super();
+		}
+
+		public TransformationFailedException(String arg0, Throwable arg1,
+				boolean arg2, boolean arg3) {
+			super(arg0, arg1, arg2, arg3);
+		}
+
+		public TransformationFailedException(String arg0, Throwable arg1) {
+			super(arg0, arg1);
+		}
+
+		public TransformationFailedException(String arg0) {
+			super(arg0);
+		}
+
+		public TransformationFailedException(Throwable arg0) {
+			super(arg0);
+		}
+
+		private static final long serialVersionUID = -256002591633736942L;
+		
+	}
 
 	public static class ColumnTypeNotSupportedException extends Exception {
 		private static final long serialVersionUID = -6729775852034148141L;
@@ -124,8 +150,9 @@ public abstract class TransformationStrategy {
 	 * @param row ResultSetRowReader which allows the strategy to access other columns of the original row
 	 * @return returns new value if translation was found, returns oldValue otherwise
 	 */
-	abstract public Iterable<?> transform(Object oldValue, Rule rule, ResultSetRowReader row) 
-			throws SQLException, TransformationKeyNotFoundException;
+	abstract public Iterable<?> transform(Object oldValue, Rule rule,
+			ResultSetRowReader row) throws TransformationFailedException,
+			SQLException, TransformationKeyNotFoundException;
 
 	public char[] shuffledChars() {
 		String allChars = 

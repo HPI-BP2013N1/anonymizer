@@ -93,19 +93,21 @@ public class Analyzer {
 				String typename = "";
 				int length = 0;
 				boolean nullAllowed = false;
-				try (ResultSet column = metaData.getColumns(null, 
-						rule.tableField.schema, 
-						rule.tableField.table,
-						rule.tableField.column)) {
-					column.next();
-					typename = column.getString("TYPE_NAME");
-					length = column.getInt("COLUMN_SIZE");
-					nullAllowed = column.getInt("NULLABLE") == DatabaseMetaData.columnNullable;
-				} catch(Exception e) {
-					logger.severe("This field does not exist in the schema.");
-					config.rules.remove(i);
-					logger.warning("Skipping rule " + rule);
-					continue;
+				if (rule.tableField.column != null) {
+					try (ResultSet column = metaData.getColumns(null, 
+							rule.tableField.schema, 
+							rule.tableField.table,
+							rule.tableField.column)) {
+						column.next();
+						typename = column.getString("TYPE_NAME");
+						length = column.getInt("COLUMN_SIZE");
+						nullAllowed = column.getInt("NULLABLE") == DatabaseMetaData.columnNullable;
+					} catch(Exception e) {
+						logger.severe("This field does not exist in the schema.");
+						config.rules.remove(i);
+						logger.warning("Skipping rule " + rule);
+						continue;
+					}
 				}
 				
 				// let the strategies validate their rules

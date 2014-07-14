@@ -53,7 +53,7 @@ public class RowRetainServiceTest {
 
 	@Test
 	public void testRetainInsertQuery() {
-		RowRetainService.PrimaryKey pk = sut.new PrimaryKey();
+		PrimaryKey pk = new PrimaryKey();
 		pk.columnNames = Lists.newArrayList("A");
 		assertThat(sut.retainInsertQuery("S", "T", pk),
 				equalTo("INSERT INTO S.T_RETAINED (A) VALUES (?)"));
@@ -64,7 +64,7 @@ public class RowRetainServiceTest {
 
 	@Test @Ignore("not implemented yet")
 	public void testRetainInsertQueryEscaped() {
-		RowRetainService.PrimaryKey pk = sut.new PrimaryKey();
+		PrimaryKey pk = new PrimaryKey();
 		pk.columnNames = Lists.newArrayList("A");
 		assertThat(sut.retainInsertQuery("Schema", "Table", pk),
 				equalTo("INSERT INTO \"Schema\".\"Table\" (A) VALUES (?)"));
@@ -88,7 +88,7 @@ public class RowRetainServiceTest {
 			ResultSet otherRowS = mock(ResultSet.class, RETURNS_SMART_NULLS);
 			when(otherRowS.getObject(anyString())).thenReturn("something else");
 			ResultSetRowReader otherRow = new ResultSetRowReader(otherRowS);
-			sut.retainCurrentRow("S", "T", rowS);
+			sut.retainCurrentRow("S", "T", row);
 			assertThat(sut.currentRowShouldBeRetained("S", "T", row), is(true));
 			assertThat(sut.currentRowShouldBeRetained("S", "T2", row), is(false));
 			assertThat(sut.currentRowShouldBeRetained("S", "T", otherRow), is(false));

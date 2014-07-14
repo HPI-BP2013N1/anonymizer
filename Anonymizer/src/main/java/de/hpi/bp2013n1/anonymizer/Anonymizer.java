@@ -47,6 +47,7 @@ import com.google.common.collect.Multimap;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.ColumnTypeNotSupportedException;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.FetchPseudonymsFailedException;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedExection;
+import de.hpi.bp2013n1.anonymizer.TransformationStrategy.TransformationFailedException;
 import de.hpi.bp2013n1.anonymizer.db.BatchOperation;
 import de.hpi.bp2013n1.anonymizer.db.ColumnDatatypeDescription;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -605,6 +606,8 @@ public class Anonymizer {
 					+ currentValue + "\" (from table " + 
 					tableRules.tableName + "." + columnName + 
 					") : " + e.getMessage() + ". Using empty String instead.");
+		} catch (TransformationFailedException e) {
+			anonymizerLogger.severe(e.getMessage());
 		}
 		return Lists.newArrayList("");
 	}

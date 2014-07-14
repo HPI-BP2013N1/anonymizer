@@ -34,7 +34,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -77,20 +76,6 @@ public class RowRetainService {
 	private Connection originalDatabase;
 	private Connection transformationDatabase;
 	
-	class PrimaryKey {
-		List<String> columnNames;
-		List<String> columnTypeNames;
-		String keyName;
-		
-		public List<String> columnDefinitions() {
-			ArrayList<String> definitions = new ArrayList<>(columnNames.size());
-			for (int i = 0; i < columnNames.size(); i++)
-				definitions.add(columnNames.get(i) + " " 
-						+ columnTypeNames.get(i));
-			return definitions;
-		}
-	}
-	
 	Map<String, PrimaryKey> cachedPrimaryKeys = new HashMap<>();
 	Set<String> tablesWithRetainedRows = new HashSet<>();
 
@@ -113,7 +98,7 @@ public class RowRetainService {
 				String sourceTableName = retainTableName.substring(0, 
 						retainTableName.length() - RETAIN_TABLE_SUFFIX.length());
 				tablesWithRetainedRows.add(
-						qualifiedTableName(retainTables.getString("TABLE_SCHEM"), 
+						SQLHelper.qualifiedTableName(retainTables.getString("TABLE_SCHEM"), 
 								sourceTableName));
 			}
 		} catch (SQLException e) {
@@ -122,13 +107,13 @@ public class RowRetainService {
 		}
 	}
 	
-	public void retainCurrentRow(String schema, String table, ResultSet row) 
+	public void retainCurrentRow(String schema, String table, ResultSetRowReader row) 
 			throws InsertRetainMarkFailed {
 		try {
 			PrimaryKey pk = getPrimaryKey(schema, table);
 			if (!retainTableExistsFor(schema, table))
 				createRetainTableFor(schema, table, pk);
-			tablesWithRetainedRows.add(qualifiedTableName(schema, table));
+			tablesWithRetainedRows.add(SQLHelper.qualifiedTableName(schema, table));
 			try (PreparedStatement insertStatement = prepareRetainInsert(schema, table, pk)) {
 				int columnIndex = 1;
 				for (String columnName : pk.columnNames) {
@@ -189,56 +174,23 @@ public class RowRetainService {
 		return schema + "." + table + RETAIN_TABLE_SUFFIX;
 	}
 
-	private PrimaryKey getPrimaryKey(String schema, String table) 
+	public PrimaryKey getPrimaryKey(String schema, String table) 
 			throws SQLException {
-		PrimaryKey pk = cachedPrimaryKeys.get(qualifiedTableName(schema, table));
+		PrimaryKey pk = cachedPrimaryKeys.get(SQLHelper.qualifiedTableName(schema, table));
 		if (pk != null)
 			return pk;
-		DatabaseMetaData metaData = originalDatabase.getMetaData();
-		pk = new PrimaryKey();
-		try (ResultSet pkResultSet = metaData.getPrimaryKeys(null, schema, table)) {
-			if (!pkResultSet.next()) {
-				// TODO: no primary key
-			}
-			pk.keyName = pkResultSet.getString("PK_NAME");
-			TreeMap<Integer, String> columns = new TreeMap<>();
-			do {
-				columns.put(pkResultSet.getInt("KEY_SEQ"), 
-						pkResultSet.getString("COLUMN_NAME"));
-			} while (pkResultSet.next());
-			pk.columnNames = new ArrayList<>(columns.values());
-			try (PreparedStatement select = originalDatabase.prepareStatement(
-					"SELECT " + Joiner.on(',').join(pk.columnNames) 
-					+ " FROM " + qualifiedTableName(schema, table)
-					+ " WHERE 1 = 0")) { // only interested in metadata
-				ResultSetMetaData selectPKMetaData = select.getMetaData();
-				pk.columnTypeNames = new ArrayList<>(pk.columnNames.size());
-				for (int i = 1; i <= pk.columnNames.size(); i++) {
-					pk.columnTypeNames.add(selectPKMetaData.getColumnTypeName(i));
-				}
-			}
-		}
-		return pk;
-	}
-
-	private String qualifiedTableName(String schema, String table) {
-		return schema + "." + table;
+		return new PrimaryKey(schema, table, originalDatabase);
 	}
 
 	public boolean currentRowShouldBeRetained(String schema, String table,
 			ResultSetRowReader row) throws SQLException {
-		if (!tablesWithRetainedRows.contains(qualifiedTableName(schema, table)))
+		if (!tablesWithRetainedRows.contains(SQLHelper.qualifiedTableName(schema, table)))
 			return false;
 		PrimaryKey primaryKey = getPrimaryKey(schema, table);
-		Map<String, Object> comparisons = new TreeMap<>();
-		for (String pkColumn : primaryKey.columnNames)
-			comparisons.put(pkColumn + " = ?", row.getObject(pkColumn));
+		Map<String, Object> comparisons = primaryKey.whereComparisons(row);
 		try (PreparedStatement select = transformationDatabase.prepareStatement(
 				selectRetainedPrimaryKeyQuery(schema, table, comparisons))) {
-			int i = 1;
-			for (Object value : comparisons.values()) {
-				select.setObject(i++, value);
-			}
+			PrimaryKey.setParametersForPKQuery(comparisons, select);
 			try (ResultSet result = select.executeQuery()) {
 				return result.next();
 			}
@@ -248,7 +200,7 @@ public class RowRetainService {
 	String selectRetainedPrimaryKeyQuery(String schema, String table,
 			Map<String, Object> comparisons) {
 		return "SELECT 1 FROM " + retainTableName(schema, table) 
-		+ " WHERE " + Joiner.on(" AND ").join(comparisons.keySet());
+		+ " WHERE " + PrimaryKey.whereComparisonClause(comparisons);
 	}
 
 }

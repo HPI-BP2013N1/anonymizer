@@ -99,6 +99,10 @@ public abstract class SQLHelper {
 	public abstract void createSchema(Connection connection, String schema) 
 			throws SQLException;
 
+	public static String qualifiedTableName(String schema, String table) {
+		return schema + "." + table;
+	}
+
 	public static void createSchema(String schema, Connection connection) 
 			throws SQLException {
 		getHelperFor(connection).createSchema(connection, schema);

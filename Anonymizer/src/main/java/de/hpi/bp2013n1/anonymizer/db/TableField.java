@@ -27,15 +27,17 @@ public class TableField {
 	public String schema;
 
 	public TableField(String str){
-			String[] split = str.split("\\.");
-			table = split[0];
+		String[] split = str.split("\\.");
+		table = split[0];
+		if (split.length > 1)
 			column = split[1];
 	}
 	
 	public TableField(String str, String schemaName){
 		String[] split = str.split("\\.");
 		table = split[0];
-		column = split[1];
+		if (split.length > 1)
+			column = split[1];
 		this.schema = schemaName;
 	}
 	
@@ -104,11 +106,9 @@ public class TableField {
 	}
 	
 	@Override
-	public String toString(){
+	public String toString() {
+		if (column == null)
+			return table;
 		return table + "." + column;
-	}
-	
-	public String toSQLString(){
-		return "`" + table + "`.`" + column + "`";
 	}
 }
