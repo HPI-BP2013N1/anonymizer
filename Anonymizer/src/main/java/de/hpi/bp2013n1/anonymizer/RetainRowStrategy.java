@@ -36,11 +36,11 @@ import de.hpi.bp2013n1.anonymizer.shared.TableRuleMap;
  * to be retained with {@link RowRetainService} if they meet certain criteria.
  * @author Caroline Göricke, Jakob Reschke
  */
-public class RetainStrategy extends TransformationStrategy {
+public class RetainRowStrategy extends TransformationStrategy {
 	
 	private RowMatcher criterionMatcher;
 
-	public RetainStrategy(Anonymizer anonymizer, Connection originalDatabase,
+	public RetainRowStrategy(Anonymizer anonymizer, Connection originalDatabase,
 			Connection transformationDatabase) throws SQLException {
 		super(anonymizer, originalDatabase, transformationDatabase);
 		criterionMatcher = new RowMatcher(originalDatabase);

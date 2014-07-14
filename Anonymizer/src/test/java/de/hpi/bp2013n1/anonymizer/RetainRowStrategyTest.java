@@ -39,9 +39,9 @@ import de.hpi.bp2013n1.anonymizer.TransformationStrategy.TransformationFailedExc
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 
-public class RetainStrategyTest {
+public class RetainRowStrategyTest {
 
-	private RetainStrategy sut;
+	private RetainRowStrategy sut;
 	private TestDataFixture testData;
 	private RowRetainService retainService;
 
@@ -55,7 +55,7 @@ public class RetainStrategyTest {
 				testData.originalDbConnection,
 				testData.transformationDbConnection);
 		when(anonymizerMock.getRetainService()).thenReturn(retainService);
-		sut = new RetainStrategy(anonymizerMock, testData.originalDbConnection,
+		sut = new RetainRowStrategy(anonymizerMock, testData.originalDbConnection,
 				testData.transformationDbConnection);
 	}
 
