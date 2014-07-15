@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.TreeMap;
 
 import com.google.common.base.Joiner;
+import com.google.common.collect.ImmutableList;
 
 import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 
@@ -71,6 +72,10 @@ class PrimaryKey {
 		}
 	}
 	
+	public List<String> columnNames() {
+		return ImmutableList.copyOf(columnNames);
+	}
+	
 	public List<String> columnDefinitions() {
 		ArrayList<String> definitions = new ArrayList<>(columnNames.size());
 		for (int i = 0; i < columnNames.size(); i++)
@@ -79,6 +84,14 @@ class PrimaryKey {
 		return definitions;
 	}
 
+	public Map<String, Object> keyValues(ResultSetRowReader row)
+			throws SQLException {
+		Map<String, Object> comparisons = new TreeMap<>();
+		for (String pkColumn : columnNames)
+			comparisons.put(pkColumn, row.getObject(pkColumn));
+		return comparisons;
+	}
+	
 	public Map<String, Object> whereComparisons(ResultSetRowReader row)
 			throws SQLException {
 		Map<String, Object> comparisons = new TreeMap<>();
@@ -86,7 +99,7 @@ class PrimaryKey {
 			comparisons.put(pkColumn + " = ?", row.getObject(pkColumn));
 		return comparisons;
 	}
-	
+
 	public static String whereComparisonClause(Map<String, Object> comparisons) {
 		return Joiner.on(" AND ").join(comparisons.keySet());
 	}

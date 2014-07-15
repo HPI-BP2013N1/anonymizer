@@ -79,6 +79,7 @@ public class Anonymizer {
 	private static SimpleFormatter logFormatter;
 	private int currentTableNumber;
 	private RowRetainService retainService;
+	private ForeignKeyDeletionsHandler foreignKeyDeletions = new ForeignKeyDeletionsHandler();
 	
 	public static class TableNotInScopeException extends Exception {
 		private static final long serialVersionUID = -4527921975005958468L;
@@ -363,6 +364,13 @@ public class Anonymizer {
 			TableNotFoundException {
 		anonymizerLogger.info("Started anonymizing.");
 		checkIfTablesExistInDestinationDatabase();
+		try {
+			foreignKeyDeletions.determineForeignKeysAmongTables(originalDatabase,
+					config.schemaName, scope.tables);
+		} catch (SQLException e) {
+			anonymizerLogger.severe("Could not determine relationships in the "
+					+ "source database: " + e.getMessage());
+		}
 		ArrayList<Constraint> constraints = disableAnonymizedDbConstraints();
 
 		prepareTransformations();
@@ -591,6 +599,21 @@ public class Anonymizer {
 			int columnCount, ResultSetRowReader rowReader,
 			PreparedStatement insertStatement) throws SQLException {
 		boolean retainRow = false;
+		if (foreignKeyDeletions.hasParentRowBeenDeleted(rowReader)) {
+			retainRow = retainService.currentRowShouldBeRetained(
+					config.schemaName, tableRuleMap.tableName, rowReader);
+			if (retainRow) {
+				anonymizerLogger.warning("Retaining a row in "
+						+ qualifiedTableName + " even though its parent row "
+								+ "in another table has been deleted!");
+			} else {
+				// the parent row has been deleted, so delete this row as well
+				// since the foreign key cannot be reestablished and should
+				// possible be kept secret
+				foreignKeyDeletions.rowHasBeenDeleted(rowReader);
+				return;
+			}
+		}
 		List<Iterable<?>> columnValues = new ArrayList<>(columnCount);
 		for (int j = 1; j <= columnCount; j++) { // for all columns
 			String columnName = rsMeta.getColumnName(j);
@@ -625,6 +648,7 @@ public class Anonymizer {
 						// if a Strategy returned an empty transformation, the
 						// cross product of all column values will be empty,
 						// the original tuple is lost
+						foreignKeyDeletions.rowHasBeenDeleted(rowReader);
 						return;
 					}
 					currentValues = newValues;
