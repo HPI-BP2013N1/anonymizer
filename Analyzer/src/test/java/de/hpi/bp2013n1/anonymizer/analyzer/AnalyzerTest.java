@@ -263,14 +263,29 @@ public class AnalyzerTest {
 				tableField("VISIT.VISITORSURNAME"));
 		List<TableField> matchingButIndependentFields = Lists.newArrayList(matchingFields);
 		matchingButIndependentFields.remove(dependentField);
+		
 		Rule plainRule = new Rule(originField, "P", "");
 		sut.findPossibleDependantsByName(plainRule, metaData);
 		assertThat(plainRule.potentialDependants,
 				containsInAnyOrder(matchingFields.toArray()));
+		
 		Rule fullRule = new Rule(originField, "P", "", 
 				Lists.newArrayList(dependentField));
 		sut.findPossibleDependantsByName(fullRule, metaData);
 		assertThat(fullRule.potentialDependants,
+				containsInAnyOrder(matchingButIndependentFields.toArray()));
+		
+		Rule plainRuleWithPossibleDependants = new Rule(originField, "P", "");
+		plainRuleWithPossibleDependants.potentialDependants.addAll(matchingButIndependentFields);
+		sut.findPossibleDependantsByName(plainRuleWithPossibleDependants, metaData);
+		assertThat(plainRuleWithPossibleDependants.potentialDependants,
+				containsInAnyOrder(matchingFields.toArray()));
+		
+		Rule fullRuleWithPossibleDependants = new Rule(originField, "P", "",
+				Lists.newArrayList(dependentField));
+		fullRuleWithPossibleDependants.potentialDependants.addAll(matchingButIndependentFields);
+		sut.findPossibleDependantsByName(fullRuleWithPossibleDependants, metaData);
+		assertThat(fullRuleWithPossibleDependants.potentialDependants,
 				containsInAnyOrder(matchingButIndependentFields.toArray()));
 	}
 }

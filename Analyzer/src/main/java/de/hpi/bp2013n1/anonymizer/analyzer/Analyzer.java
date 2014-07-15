@@ -141,7 +141,8 @@ public class Analyzer {
 						similarlyNamedColumns.getString("COLUMN_NAME"), 
 						config.schemaName);
 				if (!(newItem.equals(rule.tableField) 
-						|| rule.dependants.contains(newItem)))
+						|| rule.dependants.contains(newItem)
+						|| rule.potentialDependants.contains(newItem)))
 					rule.potentialDependants.add(newItem);
 			}
 		}
