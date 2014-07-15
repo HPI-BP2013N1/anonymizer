@@ -477,14 +477,14 @@ public class Anonymizer {
 		String qualifiedTableName = config.schemaName + "." + tableRuleMap.tableName;
 		truncateTable(qualifiedTableName);
 		ResultSetMetaData rsMeta;
-		int columnCount = 0;
 		int rowCount = countRowsInTable(qualifiedTableName);
+		if (rowCount > 0)
+			anonymizerLogger.info("Found " + rowCount + " rows.");
 		try (PreparedStatement selectStarStatement = originalDatabase.prepareStatement(
 				"SELECT * FROM " + qualifiedTableName);
 				ResultSet rs = selectStarStatement.executeQuery()) {
 			try {
 				rsMeta = rs.getMetaData();
-				columnCount = rsMeta.getColumnCount();	
 				
 				for (TransformationStrategy strategy : transformationStrategies)
 					strategy.prepareTableTransformation(
@@ -498,7 +498,7 @@ public class Anonymizer {
 			}
 
 			copyAndAnonymizeRows(tableRuleMap, qualifiedTableName, rsMeta,
-					columnCount, rowCount, rs);
+					rowCount, rs);
 		} catch (SQLException e) {
 			anonymizerLogger.severe("Could not query table " 
 					+ qualifiedTableName + ": " + e.getMessage());
@@ -507,26 +507,44 @@ public class Anonymizer {
 
 	private void copyAndAnonymizeRows(TableRuleMap tableRuleMap,
 			String qualifiedTableName, ResultSetMetaData rsMeta,
-			int columnCount, int rowCount, ResultSet rs) {
+			int rowCount, ResultSet rs) throws SQLException {
 		// prepared Statement for batch loading
-		StringBuilder preparedSQLQueryBuilder = new StringBuilder();
-		preparedSQLQueryBuilder.append("INSERT INTO " + config.schemaName + "." + tableRuleMap.tableName + " VALUES (");
+		int columnCount = rsMeta.getColumnCount();
+		List<String> columnNames = new ArrayList<>();
+		for (int column = 1; column <= columnCount; column++) {
+			columnNames.add(rsMeta.getColumnName(column));
+		}
+		StringBuilder insertQueryBuilder = new StringBuilder();
+		insertQueryBuilder.append("INSERT INTO ")
+		.append(qualifiedTableName)
+		.append(" (")
+		.append(Joiner.on(',').join(columnNames))
+		.append(") VALUES (");
 		for (int j = 0; j < columnCount - 1; j++)
-			preparedSQLQueryBuilder.append("?,");
-		preparedSQLQueryBuilder.append("?)");			
+			insertQueryBuilder.append("?,");
+		insertQueryBuilder.append("?)");			
 		
 		ResultSetRowReader rowReader = new ResultSetRowReader(rs);
 		rowReader.setCurrentTable(tableRuleMap.tableName);
 		rowReader.setCurrentSchema(config.schemaName);
-		try (PreparedStatement anonymizedDatabaseStatement = anonymizedDatabase.prepareStatement(
-				preparedSQLQueryBuilder.toString())) {
+		try (PreparedStatement insertStatement = anonymizedDatabase.prepareStatement(
+				insertQueryBuilder.toString())) {
 			int processedRowsCount = 0;
 			while (!rs.isClosed() && rs.next()) { // for all rows
-				copyAndAnonymizeRow(tableRuleMap, qualifiedTableName, rsMeta,
-						columnCount, rowReader, anonymizedDatabaseStatement);
+				try {
+					copyAndAnonymizeRow(tableRuleMap, qualifiedTableName, rsMeta,
+							columnCount, rowReader, insertStatement);
+				} catch (SQLException e) {
+					anonymizerLogger.severe("SQL error when transforming row #" 
+							+ (processedRowsCount + 1) + ": " + e.getMessage());
+				}
 				processedRowsCount++;
 				if ((processedRowsCount % config.batchSize) == 0) {
-					BatchOperation.executeAndCommit(anonymizedDatabaseStatement);
+					try {
+						BatchOperation.executeAndCommit(insertStatement);
+					} catch (SQLException e) {
+						logBatchInsertError(e);
+					}
 				}
 				
 				if ((processedRowsCount % LOG_INTERVAL) == 0)
@@ -538,17 +556,29 @@ public class Anonymizer {
 			else
 				System.out.format("\n");
 			
-			BatchOperation.executeAndCommit(anonymizedDatabaseStatement);
+			try {
+				BatchOperation.executeAndCommit(insertStatement);
+			} catch (SQLException e) {
+				logBatchInsertError(e);
+			}
 		} catch (SQLException e) {
 			anonymizerLogger.severe("SQL error while traversing table "
 					+ qualifiedTableName + ": " + e.getMessage());
 		}
 	}
 
+	private void logBatchInsertError(SQLException e) {
+		anonymizerLogger.severe("Error(s) during batch insert: " + e.getMessage());
+		for (Throwable chainedException : e) {
+			anonymizerLogger.severe("Insert error: " 
+					+ chainedException.getMessage());
+		}
+	}
+
 	private void copyAndAnonymizeRow(TableRuleMap tableRuleMap,
 			String qualifiedTableName, ResultSetMetaData rsMeta,
 			int columnCount, ResultSetRowReader rowReader,
-			PreparedStatement anonymizedDatabaseStatement) throws SQLException {
+			PreparedStatement insertStatement) throws SQLException {
 		boolean retainRow = false;
 		List<Iterable<?>> columnValues = new ArrayList<>(columnCount);
 		for (int j = 1; j <= columnCount; j++) { // for all columns
@@ -561,8 +591,8 @@ public class Anonymizer {
 					Iterable<Object> newValues = Collections.emptyList();
 					for (Object intermediateValue : currentValues) {
 						Iterable<?> transformationResults = anonymizeValue(
-								intermediateValue, configRule, rowReader, j,
-								columnName, tableRuleMap);
+								intermediateValue, configRule, rowReader, columnName,
+								tableRuleMap);
 						newValues = Iterables.concat(newValues, 
 								transformationResults);
 					}
@@ -595,10 +625,9 @@ public class Anonymizer {
 			}
 		}					
 		try {
-			addBatchInserts(anonymizedDatabaseStatement, columnValues);
+			addBatchInserts(insertStatement, columnValues);
 		} catch (SQLException e) {
-			anonymizerLogger.severe("Adding Statement :" 
-					+ anonymizedDatabaseStatement + " failed: " 
+			anonymizerLogger.severe("Adding insert statement failed: " 
 					+ e.getMessage());
 			e.printStackTrace();
 		}
@@ -630,8 +659,8 @@ public class Anonymizer {
 	}
 
 	private Iterable<?> anonymizeValue(Object currentValue,
-			Rule configRule, ResultSetRowReader rowReader, int columnIndex,
-			String columnName, TableRuleMap tableRules) throws SQLException {
+			Rule configRule, ResultSetRowReader rowReader, String columnName,
+			TableRuleMap tableRules) {
 		TransformationStrategy strategy;
 		strategy = getStrategyFor(configRule);
 		try {
