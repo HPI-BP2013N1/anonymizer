@@ -30,7 +30,6 @@ import com.google.common.collect.Lists;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.TableRuleMap;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyCreationException;
-import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyNotFoundException;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
 public class DeleteRowStrategy extends TransformationStrategy {
