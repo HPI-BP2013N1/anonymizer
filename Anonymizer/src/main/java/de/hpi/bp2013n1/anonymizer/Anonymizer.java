@@ -24,6 +24,7 @@ package de.hpi.bp2013n1.anonymizer;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -38,6 +39,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.SimpleFormatter;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -84,6 +86,14 @@ public class Anonymizer {
 	
 	public static class FatalError extends Exception {
 		private static final long serialVersionUID = -6431519862013506163L;
+	}
+	
+	public static class TableNotFoundException extends Exception {
+		private static final long serialVersionUID = -852972263392782109L;
+
+		public TableNotFoundException(String message) {
+			super(message);
+		}
 	}
 	
 	/**
@@ -162,6 +172,9 @@ public class Anonymizer {
 				} catch (PreparationFailedExection e) {
 					anonymizerLogger.severe(e.getMessage());
 					throw new FatalError();
+				} catch (TableNotFoundException e) {
+					anonymizerLogger.severe(e.getMessage());
+					throw new FatalError();
 				}
 		} catch (SQLException e) {
 			anonymizerLogger.severe("SQL error while checking whether all "
@@ -175,9 +188,12 @@ public class Anonymizer {
 			NoSuchMethodException, InstantiationException,
 			IllegalAccessException, InvocationTargetException, 
 			ClassCastException {
+		anonymizerLogger.info("Loading transformation strategies.");
 		for (Rule rule : config.rules) {
 			rule.strategy = config.strategyMapping.get(rule.strategy);
-			loadAndInstanciateStrategy(rule.strategy);	
+			if (!strategyByClassName.containsKey(rule.strategy)) {
+				loadAndInstanciateStrategy(rule.strategy);
+			}
 		}
 	}
 	
@@ -185,6 +201,7 @@ public class Anonymizer {
 					throws ClassNotFoundException, NoSuchMethodException, 
 					InstantiationException, IllegalAccessException, 
 					InvocationTargetException, ClassCastException {
+		System.out.println("Loading " + strategyClassName);
 		try {
 			TransformationStrategy strategy = 
 					TransformationStrategy.loadAndCreate(strategyClassName, 
@@ -285,6 +302,7 @@ public class Anonymizer {
 	}
 	
 	public int checkLengths() throws SQLException {
+		anonymizerLogger.info("Checking whether the transformation rules are valid.");
 		int numberOfErrors = 0;
 		for (Rule rule : config.rules) {
 			TableField tableField = rule.tableField;
@@ -337,14 +355,14 @@ public class Anonymizer {
 	 * @throws TransformationKeyCreationException
 	 * @throws FetchPseudonymsFailedException
 	 * @throws PreparationFailedExection 
-	 * @throws SQLException
-	 * @throws Exception
 	 */
 	public void anonymize() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
-			ColumnTypeNotSupportedException, PreparationFailedExection {
+			ColumnTypeNotSupportedException, PreparationFailedExection,
+			TableNotFoundException {
 		anonymizerLogger.info("Started anonymizing.");
+		checkIfTablesExistInDestinationDatabase();
 		ArrayList<Constraint> constraints = disableAnonymizedDbConstraints();
 
 		prepareTransformations();
@@ -354,6 +372,32 @@ public class Anonymizer {
 		anonymizerLogger.info("Finished: Anonymizing");
 		for (TransformationStrategy strategy : transformationStrategies)
 			strategy.printSummary();
+	}
+
+	private void checkIfTablesExistInDestinationDatabase()
+			throws TableNotFoundException {
+		try {
+			DatabaseMetaData metaData = anonymizedDatabase.getMetaData();
+			String[] tableTypes = new String[] { "TABLE" };
+			List<String> missingTables = new ArrayList<>();
+			for (String tableName : scope.tables) {
+				try (ResultSet tables = metaData.getTables(
+						null, config.schemaName, tableName, tableTypes)) {
+					if (!tables.next())
+						missingTables.add(SQLHelper.qualifiedTableName(
+								config.schemaName, tableName));
+				}
+			}
+			if (!missingTables.isEmpty())
+				throw new TableNotFoundException(
+						"The following tables could not be found:\n" 
+								+ Joiner.on('\n').join(missingTables));
+		} catch (SQLException e) {
+			anonymizerLogger.severe("Could not determine if all tables exist "
+					+ "in the destination database. This may lead to a lot of "
+					+ "error messages if some tables are really missing. "
+					+ "The error was: " + e.getMessage());
+		}
 	}
 
 	private ArrayList<Constraint> disableAnonymizedDbConstraints() {
