@@ -461,11 +461,22 @@ public class Anonymizer {
 	
 	private void copyAndAnonymizeData() {
 		anonymizerLogger.info("Started copying data.");
+		try {
+			anonymizedDatabase.setAutoCommit(false);
+		} catch (SQLException | AbstractMethodError e) {
+			// no performance gain but not severe
+		}
+		
 		tableRuleMaps = AnonymizerUtils.createTableRuleMaps(config, scope);
-
 		currentTableNumber = 0;
 		for (TableRuleMap tableRuleMap : tableRuleMaps) {
 			copyAndAnonymizeTable(tableRuleMap);
+		}
+		
+		try {
+			anonymizedDatabase.setAutoCommit(true);
+		} catch (SQLException | AbstractMethodError e) {
+			// probably disabling it also failed earlier
 		}
 		anonymizerLogger.info("Finished: Copying Data.");
 	}
