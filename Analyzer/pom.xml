@@ -41,6 +41,17 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
+        <configuration>
+          <filters>
+            <filter>
+              <!-- include all classes from Anonymizer even if not referenced -->
+              <artifact>de.hpi.bp2013n1.Anonymizer:Anonymizer</artifact>
+              <includes>
+                <include>**</include>
+              </includes>
+            </filter>
+          </filters>
+        </configuration>
       </plugin>
     </plugins>
   </build>
