@@ -580,7 +580,7 @@ public class Anonymizer {
 
 	private void logBatchInsertError(SQLException e) {
 		anonymizerLogger.severe("Error(s) during batch insert: " + e.getMessage());
-		for (Throwable chainedException : e) {
+		for (Throwable chainedException : Iterables.skip(e, 1)) {
 			anonymizerLogger.severe("Insert error: " 
 					+ chainedException.getMessage());
 		}
