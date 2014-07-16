@@ -120,18 +120,15 @@ The indented lines as dependents from the last unindented line above. The #-mark
 
 Architecture of the TransformationStrategy
 ------------------------------------------
-The TransformationStategy is the core of our project. It provides the methods each concrete strategy should implement.
-    - einzelne methoden der Klasse vorstellen (ggf. bsp)
+The TransformationStategy is the actual heart of our project. Every strategy extents this abstract class. It provides the methods each concrete strategy should implement. So each new strategy should check if a rule (consiting of an table.attribut, its dependents, a given strategy and the optional additionalInfo) is valid for the tasks the strategy wants to process.
 
+Everything concerning the transformation is encapsulated within the abstract methods prepareTableForTransformation and the setUpTransformation.
+Furthermore, the TransformationStrategy provides the possibility to return a shuffeled array (of numbers or characters or strings) and 
 
 You can easily add new anonymizing strategies. Each new stategy needs to be added to the CLASSPATH and must be named in the *Config*.    
 
 
-Sample Usage
-------------------------------
-    - wie auf commandline bedienen (CLASSPATH etc)
-    - wie neue strategien erzeugen
-
 
 **Contributions are Welcome!**
 ------------------------------
+
