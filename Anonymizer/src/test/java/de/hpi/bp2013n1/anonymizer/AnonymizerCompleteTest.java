@@ -249,9 +249,7 @@ public class AnonymizerCompleteTest {
 	@Test
 	public void checkUniformDistributionDeletions() throws DatabaseUnitException, SQLException {
 		IDatabaseConnection db = getDbUnitConnection();
-		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
-		IDataSet data = dataSetBuilder.build(TestDataFixture.class
-				.getResourceAsStream("productsalesdata-transformed.xml"));
+		IDataSet data = testData.expectedDestinationDataSet();
 		ITable productSalesTable = data.getTable("PRODUCTSALES");
 		ITable actualTable = db.createTable("PRODUCTSALES");
 		org.dbunit.Assertion.assertEquals(productSalesTable, actualTable);
@@ -260,9 +258,7 @@ public class AnonymizerCompleteTest {
 	@Test
 	public void checkForeignKeyDependantDeletions() throws DatabaseUnitException, SQLException {
 		IDatabaseConnection db = getDbUnitConnection();
-		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
-		IDataSet data = dataSetBuilder.build(TestDataFixture.class
-				.getResourceAsStream("productsalesdata-transformed.xml"));
+		IDataSet data = testData.expectedDestinationDataSet();
 		for (String tableName : Lists.newArrayList("PRODUCTBUYER", "BUYERDETAILS")) {
 			ITable expectedTable = data.getTable(tableName);
 			ITable actualTable = db.createTable(tableName);
