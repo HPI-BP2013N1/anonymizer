@@ -260,7 +260,9 @@ public class AnalyzerTest {
 		List<TableField> matchingFields = Lists.newArrayList(
 				tableField("VISITOR.SURNAME"),
 				dependentField,
-				tableField("VISIT.VISITORSURNAME"));
+				tableField("VISIT.VISITORSURNAME"),
+				tableField("PRODUCTBUYER.BUYERNAME"),
+				tableField("BUYERDETAILS.BUYERNAME"));
 		List<TableField> matchingButIndependentFields = Lists.newArrayList(matchingFields);
 		matchingButIndependentFields.remove(dependentField);
 		

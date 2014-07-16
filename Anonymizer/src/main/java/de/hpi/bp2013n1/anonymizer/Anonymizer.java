@@ -79,6 +79,7 @@ public class Anonymizer {
 	private static SimpleFormatter logFormatter;
 	private int currentTableNumber;
 	private RowRetainService retainService;
+	private ForeignKeyDeletionsHandler foreignKeyDeletions = new ForeignKeyDeletionsHandler();
 	
 	public static class TableNotInScopeException extends Exception {
 		private static final long serialVersionUID = -4527921975005958468L;
@@ -86,6 +87,14 @@ public class Anonymizer {
 	
 	public static class FatalError extends Exception {
 		private static final long serialVersionUID = -6431519862013506163L;
+
+		public FatalError() {
+			super();
+		}
+
+		public FatalError(Throwable cause) {
+			super(cause);
+		}
 	}
 	
 	public static class TableNotFoundException extends Exception {
@@ -126,28 +135,28 @@ public class Anonymizer {
 			loadAndInstantiateStrategies();
 		} catch (ClassNotFoundException e) {
 			anonymizerLogger.severe("Could not load strategy: " + e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 		// getConstructor
 		catch (NoSuchMethodException e) {
 			anonymizerLogger.severe("Strategy is missing the required constructor: "
 					+ e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		} catch (SecurityException e) {
 			anonymizerLogger.severe("Could not access strategy constructor: "
 					+ e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		} 
 		// newInstance
 		catch (InstantiationException | IllegalAccessException 
 				| IllegalArgumentException | InvocationTargetException e) {
 			anonymizerLogger.severe("Could not create strategy: " + e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 		// not a TransformationStrategy
 		catch (ClassCastException e) {
 			// error message has already been emitted in loadAndInstanciateStrategy
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 	
 		try {
@@ -157,7 +166,7 @@ public class Anonymizer {
 				} catch (TransformationTableCreationException e) {
 					anonymizerLogger.severe("Could not create pseudonyms table: "
 							+ e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				} catch (TransformationKeyCreationException e) {
 					anonymizerLogger.severe("Could not create pseudonyms: "
 							+ e.getMessage());
@@ -168,19 +177,19 @@ public class Anonymizer {
 					anonymizerLogger.severe("An anonymization strategy does not "
 							+ "support the type of column to which the strategy "
 							+ "should be applied: " + e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				} catch (PreparationFailedExection e) {
 					anonymizerLogger.severe(e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				} catch (TableNotFoundException e) {
 					anonymizerLogger.severe(e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				}
 		} catch (SQLException e) {
 			anonymizerLogger.severe("SQL error while checking whether all "
 					+ "values will fit into their column: "
 					+ e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 	}
 	
@@ -363,6 +372,13 @@ public class Anonymizer {
 			TableNotFoundException {
 		anonymizerLogger.info("Started anonymizing.");
 		checkIfTablesExistInDestinationDatabase();
+		try {
+			foreignKeyDeletions.determineForeignKeysAmongTables(originalDatabase,
+					config.schemaName, scope.tables);
+		} catch (SQLException e) {
+			anonymizerLogger.severe("Could not determine relationships in the "
+					+ "source database: " + e.getMessage());
+		}
 		ArrayList<Constraint> constraints = disableAnonymizedDbConstraints();
 
 		prepareTransformations();
@@ -461,11 +477,22 @@ public class Anonymizer {
 	
 	private void copyAndAnonymizeData() {
 		anonymizerLogger.info("Started copying data.");
+		try {
+			anonymizedDatabase.setAutoCommit(false);
+		} catch (SQLException | AbstractMethodError e) {
+			// no performance gain but not severe
+		}
+		
 		tableRuleMaps = AnonymizerUtils.createTableRuleMaps(config, scope);
-
 		currentTableNumber = 0;
 		for (TableRuleMap tableRuleMap : tableRuleMaps) {
 			copyAndAnonymizeTable(tableRuleMap);
+		}
+		
+		try {
+			anonymizedDatabase.setAutoCommit(true);
+		} catch (SQLException | AbstractMethodError e) {
+			// probably disabling it also failed earlier
 		}
 		anonymizerLogger.info("Finished: Copying Data.");
 	}
@@ -477,19 +504,22 @@ public class Anonymizer {
 		String qualifiedTableName = config.schemaName + "." + tableRuleMap.tableName;
 		truncateTable(qualifiedTableName);
 		ResultSetMetaData rsMeta;
-		int columnCount = 0;
 		int rowCount = countRowsInTable(qualifiedTableName);
+		if (rowCount > 0)
+			anonymizerLogger.info("Found " + rowCount + " rows.");
 		try (PreparedStatement selectStarStatement = originalDatabase.prepareStatement(
 				"SELECT * FROM " + qualifiedTableName);
 				ResultSet rs = selectStarStatement.executeQuery()) {
 			try {
 				rsMeta = rs.getMetaData();
-				columnCount = rsMeta.getColumnCount();	
 				
-				for (TransformationStrategy strategy : transformationStrategies)
-					strategy.prepareTableTransformation(
-							tableRuleMap.filteredByStrategy(
-									strategy.getClass().getName()));
+				for (TransformationStrategy strategy : transformationStrategies) {
+					TableRuleMap tableRuleMapForStrategy = tableRuleMap.filteredByStrategy(
+							strategy.getClass().getName());
+					if (tableRuleMapForStrategy.isEmpty())
+						continue;
+					strategy.prepareTableTransformation(tableRuleMapForStrategy);
+				}
 				
 			} catch (SQLException e) {
 				anonymizerLogger.warning("Fetching rows failed: " + e.getMessage());
@@ -498,7 +528,7 @@ public class Anonymizer {
 			}
 
 			copyAndAnonymizeRows(tableRuleMap, qualifiedTableName, rsMeta,
-					columnCount, rowCount, rs);
+					rowCount, rs);
 		} catch (SQLException e) {
 			anonymizerLogger.severe("Could not query table " 
 					+ qualifiedTableName + ": " + e.getMessage());
@@ -507,26 +537,44 @@ public class Anonymizer {
 
 	private void copyAndAnonymizeRows(TableRuleMap tableRuleMap,
 			String qualifiedTableName, ResultSetMetaData rsMeta,
-			int columnCount, int rowCount, ResultSet rs) {
+			int rowCount, ResultSet rs) throws SQLException {
 		// prepared Statement for batch loading
-		StringBuilder preparedSQLQueryBuilder = new StringBuilder();
-		preparedSQLQueryBuilder.append("INSERT INTO " + config.schemaName + "." + tableRuleMap.tableName + " VALUES (");
+		int columnCount = rsMeta.getColumnCount();
+		List<String> columnNames = new ArrayList<>();
+		for (int column = 1; column <= columnCount; column++) {
+			columnNames.add(rsMeta.getColumnName(column));
+		}
+		StringBuilder insertQueryBuilder = new StringBuilder();
+		insertQueryBuilder.append("INSERT INTO ")
+		.append(qualifiedTableName)
+		.append(" (")
+		.append(Joiner.on(',').join(columnNames))
+		.append(") VALUES (");
 		for (int j = 0; j < columnCount - 1; j++)
-			preparedSQLQueryBuilder.append("?,");
-		preparedSQLQueryBuilder.append("?)");			
+			insertQueryBuilder.append("?,");
+		insertQueryBuilder.append("?)");			
 		
 		ResultSetRowReader rowReader = new ResultSetRowReader(rs);
 		rowReader.setCurrentTable(tableRuleMap.tableName);
 		rowReader.setCurrentSchema(config.schemaName);
-		try (PreparedStatement anonymizedDatabaseStatement = anonymizedDatabase.prepareStatement(
-				preparedSQLQueryBuilder.toString())) {
+		try (PreparedStatement insertStatement = anonymizedDatabase.prepareStatement(
+				insertQueryBuilder.toString())) {
 			int processedRowsCount = 0;
 			while (!rs.isClosed() && rs.next()) { // for all rows
-				copyAndAnonymizeRow(tableRuleMap, qualifiedTableName, rsMeta,
-						columnCount, rowReader, anonymizedDatabaseStatement);
+				try {
+					copyAndAnonymizeRow(tableRuleMap, qualifiedTableName, rsMeta,
+							columnCount, rowReader, insertStatement);
+				} catch (SQLException e) {
+					anonymizerLogger.severe("SQL error when transforming row #" 
+							+ (processedRowsCount + 1) + ": " + e.getMessage());
+				}
 				processedRowsCount++;
 				if ((processedRowsCount % config.batchSize) == 0) {
-					BatchOperation.executeAndCommit(anonymizedDatabaseStatement);
+					try {
+						BatchOperation.executeAndCommit(insertStatement);
+					} catch (SQLException e) {
+						logBatchInsertError(e);
+					}
 				}
 				
 				if ((processedRowsCount % LOG_INTERVAL) == 0)
@@ -538,18 +586,45 @@ public class Anonymizer {
 			else
 				System.out.format("\n");
 			
-			BatchOperation.executeAndCommit(anonymizedDatabaseStatement);
+			try {
+				BatchOperation.executeAndCommit(insertStatement);
+			} catch (SQLException e) {
+				logBatchInsertError(e);
+			}
 		} catch (SQLException e) {
 			anonymizerLogger.severe("SQL error while traversing table "
 					+ qualifiedTableName + ": " + e.getMessage());
 		}
 	}
 
+	private void logBatchInsertError(SQLException e) {
+		anonymizerLogger.severe("Error(s) during batch insert: " + e.getMessage());
+		for (Throwable chainedException : Iterables.skip(e, 1)) {
+			anonymizerLogger.severe("Insert error: " 
+					+ chainedException.getMessage());
+		}
+	}
+
 	private void copyAndAnonymizeRow(TableRuleMap tableRuleMap,
 			String qualifiedTableName, ResultSetMetaData rsMeta,
 			int columnCount, ResultSetRowReader rowReader,
-			PreparedStatement anonymizedDatabaseStatement) throws SQLException {
+			PreparedStatement insertStatement) throws SQLException {
 		boolean retainRow = false;
+		if (foreignKeyDeletions.hasParentRowBeenDeleted(rowReader)) {
+			retainRow = retainService.currentRowShouldBeRetained(
+					config.schemaName, tableRuleMap.tableName, rowReader);
+			if (retainRow) {
+				anonymizerLogger.warning("Retaining a row in "
+						+ qualifiedTableName + " even though its parent row "
+								+ "in another table has been deleted!");
+			} else {
+				// the parent row has been deleted, so delete this row as well
+				// since the foreign key cannot be reestablished and should
+				// possible be kept secret
+				foreignKeyDeletions.rowHasBeenDeleted(rowReader);
+				return;
+			}
+		}
 		List<Iterable<?>> columnValues = new ArrayList<>(columnCount);
 		for (int j = 1; j <= columnCount; j++) { // for all columns
 			String columnName = rsMeta.getColumnName(j);
@@ -561,12 +636,12 @@ public class Anonymizer {
 					Iterable<Object> newValues = Collections.emptyList();
 					for (Object intermediateValue : currentValues) {
 						Iterable<?> transformationResults = anonymizeValue(
-								intermediateValue, configRule, rowReader, j,
-								columnName, tableRuleMap);
+								intermediateValue, configRule, rowReader, columnName,
+								tableRuleMap);
 						newValues = Iterables.concat(newValues, 
 								transformationResults);
 					}
-					if (!currentValues.iterator().hasNext()) {
+					if (!newValues.iterator().hasNext()) {
 						if (retainRow 
 								|| retainService.currentRowShouldBeRetained(
 										configRule.tableField.schema, 
@@ -584,6 +659,7 @@ public class Anonymizer {
 						// if a Strategy returned an empty transformation, the
 						// cross product of all column values will be empty,
 						// the original tuple is lost
+						foreignKeyDeletions.rowHasBeenDeleted(rowReader);
 						return;
 					}
 					currentValues = newValues;
@@ -595,10 +671,9 @@ public class Anonymizer {
 			}
 		}					
 		try {
-			addBatchInserts(anonymizedDatabaseStatement, columnValues);
+			addBatchInserts(insertStatement, columnValues);
 		} catch (SQLException e) {
-			anonymizerLogger.severe("Adding Statement :" 
-					+ anonymizedDatabaseStatement + " failed: " 
+			anonymizerLogger.severe("Adding insert statement failed: " 
 					+ e.getMessage());
 			e.printStackTrace();
 		}
@@ -630,8 +705,8 @@ public class Anonymizer {
 	}
 
 	private Iterable<?> anonymizeValue(Object currentValue,
-			Rule configRule, ResultSetRowReader rowReader, int columnIndex,
-			String columnName, TableRuleMap tableRules) throws SQLException {
+			Rule configRule, ResultSetRowReader rowReader, String columnName,
+			TableRuleMap tableRules) {
 		TransformationStrategy strategy;
 		strategy = getStrategyFor(configRule);
 		try {
@@ -677,6 +752,7 @@ public class Anonymizer {
 			truncateStatement.executeUpdate(
 					SQLHelper.truncateTable(anonymizedDatabase, 
 							qualifiedTableName));
+			anonymizedDatabase.commit();
 		} catch (SQLException e) {
 			anonymizerLogger.warning("Could not truncate table "
 					+ qualifiedTableName + ": " + e.getMessage());

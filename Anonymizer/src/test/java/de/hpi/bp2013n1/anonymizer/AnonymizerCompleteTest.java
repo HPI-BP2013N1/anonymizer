@@ -31,10 +31,18 @@ import java.sql.SQLException;
 import java.util.Map;
 import java.util.TreeMap;
 
+import org.dbunit.DatabaseUnitException;
+import org.dbunit.database.DatabaseConnection;
+import org.dbunit.database.IDatabaseConnection;
+import org.dbunit.dataset.IDataSet;
+import org.dbunit.dataset.ITable;
+import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.google.common.collect.Lists;
 
 public class AnonymizerCompleteTest {
 
@@ -204,34 +212,57 @@ public class AnonymizerCompleteTest {
 
 	@Test
 	public void checkEqualRowCounts() throws SQLException {
-		try (ResultSet tables = testData.originalDbConnection.getMetaData().getTables(
-				null, "ORIGINAL", null, new String[] { "TABLE" })) {
-			while (tables.next()) {
-				String schema = tables.getString("TABLE_SCHEM");
-				String tableName = tables.getString("TABLE_NAME");
-				String schemaTable = schema + "." + tableName;
-				String countQuery = "SELECT COUNT(*) FROM " + schemaTable;
-				try (PreparedStatement selectOriginalCountStatement = 
-						testData.originalDbConnection
-						.prepareStatement(countQuery);
-						PreparedStatement selectAnonymizedCountStatement = 
-								testData.destinationDbConnection
-								.prepareStatement(countQuery)) {
-					try (ResultSet originalCountResultSet = selectOriginalCountStatement
-							.executeQuery();
-							ResultSet anonymizedCountResultSet = selectAnonymizedCountStatement
-									.executeQuery()) {
-						originalCountResultSet.next();
-						anonymizedCountResultSet.next();
-						assertThat(
-								"Anonymized table should have same number of rows as original table"
-								+ " (" + schemaTable + ")",
-								anonymizedCountResultSet.getInt(1),
-								equalTo(originalCountResultSet.getInt(1)));
-					}
+		String schema = "ORIGINAL";
+		for (String tableName : Lists.newArrayList("VISITOR", "CINEMA", 
+				"GREATMOVIES", "VISIT")) {
+			String schemaTable = schema + "." + tableName;
+			String countQuery = "SELECT COUNT(*) FROM " + schemaTable;
+			try (PreparedStatement selectOriginalCountStatement = 
+					testData.originalDbConnection
+					.prepareStatement(countQuery);
+					PreparedStatement selectAnonymizedCountStatement = 
+							testData.destinationDbConnection
+							.prepareStatement(countQuery)) {
+				try (ResultSet originalCountResultSet = selectOriginalCountStatement
+						.executeQuery();
+						ResultSet anonymizedCountResultSet = selectAnonymizedCountStatement
+								.executeQuery()) {
+					originalCountResultSet.next();
+					anonymizedCountResultSet.next();
+					assertThat(
+							"Anonymized table should have same number of rows as original table"
+									+ " (" + schemaTable + ")",
+									anonymizedCountResultSet.getInt(1),
+									equalTo(originalCountResultSet.getInt(1)));
 				}
 			}
 		}
 	}
 
+	private IDatabaseConnection getDbUnitConnection()
+			throws DatabaseUnitException {
+		IDatabaseConnection db = new DatabaseConnection(
+				testData.destinationDbConnection, "ORIGINAL");
+		return db;
+	}
+	
+	@Test
+	public void checkUniformDistributionDeletions() throws DatabaseUnitException, SQLException {
+		IDatabaseConnection db = getDbUnitConnection();
+		IDataSet data = testData.expectedDestinationDataSet();
+		ITable productSalesTable = data.getTable("PRODUCTSALES");
+		ITable actualTable = db.createTable("PRODUCTSALES");
+		org.dbunit.Assertion.assertEquals(productSalesTable, actualTable);
+	}
+
+	@Test
+	public void checkForeignKeyDependantDeletions() throws DatabaseUnitException, SQLException {
+		IDatabaseConnection db = getDbUnitConnection();
+		IDataSet data = testData.expectedDestinationDataSet();
+		for (String tableName : Lists.newArrayList("PRODUCTBUYER", "BUYERDETAILS")) {
+			ITable expectedTable = data.getTable(tableName);
+			ITable actualTable = db.createTable(tableName);
+			org.dbunit.Assertion.assertEquals(expectedTable, actualTable);
+		}
+	}
 }
