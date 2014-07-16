@@ -505,10 +505,13 @@ public class Anonymizer {
 			try {
 				rsMeta = rs.getMetaData();
 				
-				for (TransformationStrategy strategy : transformationStrategies)
-					strategy.prepareTableTransformation(
-							tableRuleMap.filteredByStrategy(
-									strategy.getClass().getName()));
+				for (TransformationStrategy strategy : transformationStrategies) {
+					TableRuleMap tableRuleMapForStrategy = tableRuleMap.filteredByStrategy(
+							strategy.getClass().getName());
+					if (tableRuleMapForStrategy.isEmpty())
+						continue;
+					strategy.prepareTableTransformation(tableRuleMapForStrategy);
+				}
 				
 			} catch (SQLException e) {
 				anonymizerLogger.warning("Fetching rows failed: " + e.getMessage());
