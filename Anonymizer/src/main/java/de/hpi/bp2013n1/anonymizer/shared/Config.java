@@ -64,6 +64,12 @@ public class Config {
 	
 	private static Logger configLogger = Logger.getLogger(Config.class.getName());
 	
+	public static Config fromFile(String fileName) throws DependantWithoutRuleException, IOException {
+		Config config = new Config();
+		config.readFromFile(fileName);
+		return config;
+	}
+	
 	public void readFromFile(String filename) throws DependantWithoutRuleException, IOException {		
 		File file = new File(filename);
 		FileReader fr = new FileReader(file);

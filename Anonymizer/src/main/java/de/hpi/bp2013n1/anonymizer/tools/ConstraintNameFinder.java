@@ -1,4 +1,4 @@
-package de.hpi.bp2013n1.anonymizer;
+package de.hpi.bp2013n1.anonymizer.tools;
 
 /*
  * #%L
@@ -27,6 +27,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 
+import de.hpi.bp2013n1.anonymizer.Constraint;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class ConstraintNameFinder {

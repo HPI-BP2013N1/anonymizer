@@ -62,22 +62,25 @@ import de.hpi.bp2013n1.anonymizer.shared.TableRuleMap;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyCreationException;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyNotFoundException;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
+import de.hpi.bp2013n1.anonymizer.tools.ConstraintToggler;
+import de.hpi.bp2013n1.anonymizer.tools.TableTruncater;
 import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 
 public class Anonymizer {
 	
-	private Config config;
-	private Scope scope;
+	public Config config;
+	public Scope scope;
 	private Connection originalDatabase, anonymizedDatabase, transformationDB;
 	private ArrayList<TransformationStrategy> transformationStrategies = new ArrayList<>();
 	private TreeMap<String, TransformationStrategy> strategyByClassName = new TreeMap<>();
 	private ArrayList<TableRuleMap> tableRuleMaps;
 	private final int LOG_INTERVAL = 1000;
 	
-	private static final Logger anonymizerLogger = Logger.getLogger(Anonymizer.class.getName());
+	public static final Logger anonymizerLogger = Logger.getLogger(Anonymizer.class.getName());
 	private static FileHandler logFileHandler;
 	private static SimpleFormatter logFormatter;
 	private int currentTableNumber;
+	ConstraintToggler toggler = new ConstraintToggler();
 	private RowRetainService retainService;
 	private ForeignKeyDeletionsHandler foreignKeyDeletions = new ForeignKeyDeletionsHandler();
 	
@@ -232,7 +235,7 @@ public class Anonymizer {
 			anonymizedDatabase = DatabaseConnector.connect(this.config.destinationDB);
 			transformationDB = DatabaseConnector.connect(this.config.transformationDB);
 
-		} catch (ClassNotFoundException | SQLException e) {
+		} catch (SQLException e) {
 			anonymizerLogger.severe("Could not connect to Databases. ");
 			e.printStackTrace();
 			return false;
@@ -379,12 +382,12 @@ public class Anonymizer {
 			anonymizerLogger.severe("Could not determine relationships in the "
 					+ "source database: " + e.getMessage());
 		}
-		ArrayList<Constraint> constraints = disableAnonymizedDbConstraints();
+		List<Constraint> constraints = disableAnonymizedDbConstraints();
 
 		prepareTransformations();
 		copyAndAnonymizeData();
 
-		enableAnonymizedDbConstraints(constraints);
+		ConstraintToggler.enableConstraints(constraints, anonymizedDatabase);
 		anonymizerLogger.info("Finished: Anonymizing");
 		for (TransformationStrategy strategy : transformationStrategies)
 			strategy.printSummary();
@@ -416,63 +419,8 @@ public class Anonymizer {
 		}
 	}
 
-	private ArrayList<Constraint> disableAnonymizedDbConstraints() {
-		boolean supportsDisableAllForeignKeys = 
-				anonymizedDatabaseSupportsDisableAllForeignKeys();
-		if (supportsDisableAllForeignKeys) {
-			try (Statement disableStatement = anonymizedDatabase.createStatement()) {
-				try {
-					disableStatement.execute(SQLHelper.disableAllForeignKeys(anonymizedDatabase));
-				} catch (SQLException e) {
-					anonymizerLogger.warning(String.format(
-							"Failed to disable foreign key constraints: %s",
-							e.getMessage()));
-				}
-			} catch (SQLException e) {
-				anonymizerLogger.warning(String.format(
-						"An error occured about disabling a constraint: %s",
-						e.getMessage()));
-			}
-			return null;
-		} else {
-			ArrayList<Constraint> constraints = findConstraints(anonymizedDatabase);
-			disableConstraints(constraints, anonymizedDatabase);
-			return constraints;
-		}
-	}
-
-	private void enableAnonymizedDbConstraints(ArrayList<Constraint> constraints) {
-		boolean supportsDisableAllForeignKeys = 
-				anonymizedDatabaseSupportsDisableAllForeignKeys();
-		if (supportsDisableAllForeignKeys) {
-			try (Statement enableStatement = anonymizedDatabase.createStatement()) {
-				try {
-					enableStatement.execute(SQLHelper.enableAllForeignKeys(anonymizedDatabase));
-				} catch (SQLException e) {
-					anonymizerLogger.warning(String.format(
-							"Failed to enable foreign key constraints: %s",
-							e.getMessage()));
-				}
-			} catch (SQLException e) {
-				anonymizerLogger.warning(String.format(
-						"An error occured about enabling a constraint: %s",
-						e.getMessage()));
-			}
-		} else {
-			enableConstraints(constraints, anonymizedDatabase);
-		}
-	}
-
-	private boolean anonymizedDatabaseSupportsDisableAllForeignKeys() {
-		try {
-			return SQLHelper
-					.supportsDisableAllForeignKeys(anonymizedDatabase);
-		} catch (SQLException e) {
-			anonymizerLogger.warning(String.format(
-					"Could not determine whether database supports disabling "
-					+ "all foreign key constraints at once: %s", e.getMessage()));
-			return false;
-		}
+	private List<Constraint> disableAnonymizedDbConstraints() {
+		return toggler.disableConstraints(anonymizedDatabase, config, scope);
 	}
 	
 	private void copyAndAnonymizeData() {
@@ -748,17 +696,7 @@ public class Anonymizer {
 	}
 
 	private void truncateTable(String qualifiedTableName) {
-		try (Statement truncateStatement = anonymizedDatabase.createStatement()) {
-			truncateStatement.executeUpdate(
-					SQLHelper.truncateTable(anonymizedDatabase, 
-							qualifiedTableName));
-			anonymizedDatabase.commit();
-		} catch (SQLException e) {
-			anonymizerLogger.warning("Could not truncate table "
-					+ qualifiedTableName + ": " + e.getMessage());
-			anonymizerLogger.warning("A non-empty destination database "
-					+ "can lead to subsequent fatal errors.");
-		}
+		TableTruncater.truncateTable(qualifiedTableName, anonymizedDatabase);
 	}
 
 	public TransformationStrategy getStrategyFor(Rule configRule) {
@@ -791,68 +729,6 @@ public class Anonymizer {
 					rulesByStrategy.get(strategyName));
 		}
 		anonymizerLogger.info("Finished: preparing transformations.");
-	}
-
-	private ArrayList<Constraint> findConstraints(Connection connection) {
-		ConstraintNameFinder finder = new ConstraintNameFinder(connection);
-		ArrayList<Constraint> constraintList = new ArrayList<Constraint>();
-		ArrayList<String> alreadyDoneTables = new ArrayList<String>();
-
-		for (Rule rule : config.rules) {
-			if (alreadyDoneTables.indexOf(rule.tableField.table) == -1) {
-				constraintList.addAll(finder.findConstraintName(rule.tableField.table));
-				alreadyDoneTables.add(rule.tableField.table);
-			}
-			for (TableField tableField : rule.dependants) {
-				if (alreadyDoneTables.indexOf(tableField.table) == -1) {
-					constraintList.addAll(finder.findConstraintName(tableField.table));
-					alreadyDoneTables.add(tableField.table);
-				}
-			}
-		}
-
-		for (String tableName : scope.tables) {
-			if (alreadyDoneTables.indexOf(tableName) == -1) {
-				constraintList.addAll(finder.findConstraintName(tableName));
-				alreadyDoneTables.add(tableName);
-			}
-		}
-
-		return constraintList;
-	}
-
-	private void disableConstraints(ArrayList<Constraint> constraints, Connection connection) {
-		anonymizerLogger.info("Disabling " + constraints.size() + " constraints.");
-		for (Constraint constraint : constraints) {
-			try (Statement disableStatement = connection.createStatement()) {
-				disableStatement.execute(
-						SQLHelper.disableForeignKey(connection, 
-								constraint.schemaName + "." + constraint.tableName,
-								constraint.constraintName));
-			} catch (SQLException e) {
-				anonymizerLogger.warning(String.format(
-						"Could not disable constraint %s: %s",
-						constraint.constraintName, e.getMessage()));
-			}
-		}
-		anonymizerLogger.info("Finished: Disabling " + constraints.size() + " constraints.");
-	}
-
-	private void enableConstraints(ArrayList<Constraint> constraints, Connection connection) {
-		anonymizerLogger.info("Enabling " + constraints.size() + " constraints.");
-		for (Constraint constraint : constraints) {
-			try (Statement disableStatement = connection.createStatement()) {
-				disableStatement.execute(
-						SQLHelper.enableForeignKey(connection, 
-								constraint.schemaName + "." + constraint.tableName,
-								constraint.constraintName));
-			} catch (SQLException e) {
-				anonymizerLogger.warning(String.format(
-						"Could not enable constraint %s: %s",
-						constraint.constraintName, e.getMessage()));
-			}
-		}
-		anonymizerLogger.info("Finished: Enabling " + constraints.size() + " constraints.");
 	}
 
 	public List<Rule> getRulesFor(String tableName, String columnName)

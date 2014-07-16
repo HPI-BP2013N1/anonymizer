@@ -33,6 +33,12 @@ import java.util.ArrayList;
 public class Scope {
 	public ArrayList<String> tables;
 
+	public static Scope fromFile(String fileName) throws IOException {
+		Scope scope = new Scope();
+		scope.readFromFile(fileName);
+		return scope;
+	}
+	
 	public void readFromFile(String filename) throws IOException{
 		File file = new File(filename);
 		FileReader fr = new FileReader(file);

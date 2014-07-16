@@ -28,7 +28,7 @@ import java.sql.SQLException;
 public class DatabaseConnector {
 
 	public static Connection connect(Config.ConnectionParameters c)
-			throws ClassNotFoundException, SQLException {
+			throws SQLException {
 		return DriverManager.getConnection(c.url, c.user, c.password);
 	}
 
