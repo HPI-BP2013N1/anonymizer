@@ -26,6 +26,7 @@ import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.List;
 
 import de.hpi.bp2013n1.anonymizer.Constraint;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -38,23 +39,28 @@ public class ConstraintNameFinder {
 		this.connection = connection;
 	}
 
-	public ArrayList<Constraint> findConstraintName(TableField tableAlias) {
+	public List<Constraint> findConstraintName(TableField tableAlias) {
 		return findConstraintName(tableAlias.table);
 	}
 
-	public ArrayList<Constraint> findConstraintName(String tableName) {
+	public List<Constraint> findConstraintName(String tableName) {
 		ArrayList<Constraint> result = new ArrayList<Constraint>();
 		try {
 			DatabaseMetaData metaData = connection.getMetaData();
 			try (ResultSet resultSet = metaData.getExportedKeys(
 					connection.getCatalog(), null, tableName)) {
-				while (resultSet.next())
+				String lastFKName = null;
+				while (resultSet.next()) {
+					String fkName = resultSet.getString("FK_NAME");
+					if (fkName.equals(lastFKName))
+						continue;
 					result.add(new Constraint(
 							resultSet.getString("FKTABLE_SCHEM"), 
 							resultSet.getString("FKTABLE_NAME"), 
-							resultSet.getString("FK_NAME")));
+							fkName));
+					lastFKName = fkName;
+				}
 			}
-			// TODO: unit test this against DB2
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
