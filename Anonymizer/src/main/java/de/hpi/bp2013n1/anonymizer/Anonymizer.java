@@ -87,6 +87,14 @@ public class Anonymizer {
 	
 	public static class FatalError extends Exception {
 		private static final long serialVersionUID = -6431519862013506163L;
+
+		public FatalError() {
+			super();
+		}
+
+		public FatalError(Throwable cause) {
+			super(cause);
+		}
 	}
 	
 	public static class TableNotFoundException extends Exception {
@@ -127,28 +135,28 @@ public class Anonymizer {
 			loadAndInstantiateStrategies();
 		} catch (ClassNotFoundException e) {
 			anonymizerLogger.severe("Could not load strategy: " + e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 		// getConstructor
 		catch (NoSuchMethodException e) {
 			anonymizerLogger.severe("Strategy is missing the required constructor: "
 					+ e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		} catch (SecurityException e) {
 			anonymizerLogger.severe("Could not access strategy constructor: "
 					+ e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		} 
 		// newInstance
 		catch (InstantiationException | IllegalAccessException 
 				| IllegalArgumentException | InvocationTargetException e) {
 			anonymizerLogger.severe("Could not create strategy: " + e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 		// not a TransformationStrategy
 		catch (ClassCastException e) {
 			// error message has already been emitted in loadAndInstanciateStrategy
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 	
 		try {
@@ -158,7 +166,7 @@ public class Anonymizer {
 				} catch (TransformationTableCreationException e) {
 					anonymizerLogger.severe("Could not create pseudonyms table: "
 							+ e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				} catch (TransformationKeyCreationException e) {
 					anonymizerLogger.severe("Could not create pseudonyms: "
 							+ e.getMessage());
@@ -169,19 +177,19 @@ public class Anonymizer {
 					anonymizerLogger.severe("An anonymization strategy does not "
 							+ "support the type of column to which the strategy "
 							+ "should be applied: " + e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				} catch (PreparationFailedExection e) {
 					anonymizerLogger.severe(e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				} catch (TableNotFoundException e) {
 					anonymizerLogger.severe(e.getMessage());
-					throw new FatalError();
+					throw new FatalError(e);
 				}
 		} catch (SQLException e) {
 			anonymizerLogger.severe("SQL error while checking whether all "
 					+ "values will fit into their column: "
 					+ e.getMessage());
-			throw new FatalError();
+			throw new FatalError(e);
 		}
 	}
 	
