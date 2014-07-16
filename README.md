@@ -142,6 +142,20 @@ Some details about the strategies:
 
     You must take other columns into consideration to not reveal the original cardinalities. For example, if there is an entry date column in the same table and you know that all categories are loaded in daily bunches you might deduce that a category with later starting dates was larger than another category with earlier dates.
 
+Scope - which tables to transfer
+--------------------------------
+In addition to the above described *Config* file you will also need to provide a *Scope* file. This is simply a text file which lists one table name per line. Only tables which are listed in this *Scope* file will be looked at, transformed and transferred by the Anonymizer and Analyzer.
+
+An example *Scope* file for the above *Config* example could be:
+
+    VISITOR
+    VISIT
+    CINEMA
+    GREATMOVIES
+    PRODUCTSALES
+
+Note that the implicit schema name for these tables is defined in the *Config* file.
+
 
 Architecture of the TransformationStrategy
 ------------------------------------------
@@ -156,13 +170,16 @@ You can easily add new anonymizing strategies. Each new stategy needs to be adde
 Starting per Command line
 ----------------------
 * Analyzer:
-        $ java -cp Analyzer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.analyzer.Main config_before.txt scope.txt config_afterwards.txt
+
+        $ java -cp Analyzer.jar:&lt;jdbc driver&gt; de.hpi.bp20213n1.anonymizer.analyzer.Main config_before.txt scope.txt config_afterwards.txt
+
 * Anonymizer:
-        $ java -cp Anonymizer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.Anonymizer config_afterwards.txt scope.txt anonymizing.log
-    
-Replace &lt;jdbc driver&gt; with your driver, for example jbdc4.jar.
+
+        $ java -cp Anonymizer.jar:&lt;jdbc driver&gt; de.hpi.bp20213n1.anonymizer.Anonymizer config_afterwards.txt scope.txt anonymizing.log
+
+Replace &lt;jdbc driver&gt; with your driver, for example db2jcc4.jar for DB2.
 
 
-**Contributions are Welcome!**
+**Contributions are welcome!**
 ------------------------------
 
