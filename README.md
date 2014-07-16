@@ -116,7 +116,7 @@ Now, you can define an abbreviation for the wanted strategies. Add the belonging
 
 The indented lines as dependents from the last unindented line above. The #-marked dependents are possible dependents revealed by the Analyzer. You can decide whether you want to take those in consideration or not by deleting or keeping the #.
 
-special of strategies:
+Some details about the strategies:
 * __SetDefaultStrategy__
 
     Use the additional info of *Config* for defining the fixed value. Otherwise the attribute will be empty.
@@ -156,11 +156,11 @@ You can easily add new anonymizing strategies. Each new stategy needs to be adde
 Starting per Command line
 ----------------------
 * Analyzer:
-    $ java -cp Analyzer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.analyzer.Main config_before.txt scope.txt config_afterwards.txt
+        $ java -cp Analyzer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.analyzer.Main config_before.txt scope.txt config_afterwards.txt
 * Anonymizer:
-    $ java -cp Anonymizer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.Anonymizer config_afterwards.txt scope.txt anonymizing.log
+        $ java -cp Anonymizer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.Anonymizer config_afterwards.txt scope.txt anonymizing.log
     
-Replace <jdbc driver> with your driver, for example jbdc4.jar.
+Replace &lt;jdbc driver&gt; with your driver, for example jbdc4.jar.
 
 
 **Contributions are Welcome!**
