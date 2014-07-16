@@ -641,7 +641,7 @@ public class Anonymizer {
 						newValues = Iterables.concat(newValues, 
 								transformationResults);
 					}
-					if (!currentValues.iterator().hasNext()) {
+					if (!newValues.iterator().hasNext()) {
 						if (retainRow 
 								|| retainService.currentRowShouldBeRetained(
 										configRule.tableField.schema, 

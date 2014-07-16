@@ -64,9 +64,11 @@ public class ForeignKeyDeletionsHandler {
 	Map<String, PrimaryKey> primaryKeys = new HashMap<>();
 	Multimap<String, ForeignKey> dependencies = ArrayListMultimap.create();
 	Multimap<String, Map<String, Object>> deletedRows = HashMultimap.create();
+	private Connection database;
 	
 	public void determineForeignKeysAmongTables(Connection database,
 			String schema, Collection<String> tables) throws SQLException {
+		this.database = database;
 		DatabaseMetaData metaData = database.getMetaData();
 		for (String table : tables) {
 			try (ResultSet importedKeys = metaData.getImportedKeys(null, schema, table)) {
@@ -79,11 +81,8 @@ public class ForeignKeyDeletionsHandler {
 					String fkName = importedKeys.getString("FK_NAME");
 					String parentColumn = importedKeys.getString("PKCOLUMN_NAME");
 					String referencingColumn = importedKeys.getString("FKCOLUMN_NAME");
-					PrimaryKey referencedPK = primaryKeys.get(parentTable);
-					if (referencedPK == null) {
-						referencedPK = new PrimaryKey(schema, parentTable, database);
-						primaryKeys.put(parentTable, referencedPK);
-					}
+					PrimaryKey referencedPK = getPrimaryKey(database, schema,
+							parentTable);
 					if (!fkName.equals(previousFkName)) {
 						fk = new ForeignKey(parentTable, referencedPK);
 						dependencies.put(table, fk);
@@ -93,10 +92,20 @@ public class ForeignKeyDeletionsHandler {
 			}
 		}
 	}
+
+	private PrimaryKey getPrimaryKey(Connection database, String schema,
+			String table) throws SQLException {
+		PrimaryKey referencedPK = primaryKeys.get(table);
+		if (referencedPK == null) {
+			referencedPK = new PrimaryKey(schema, table, database);
+			primaryKeys.put(table, referencedPK);
+		}
+		return referencedPK;
+	}
 	
 	public void rowHasBeenDeleted(ResultSetRowReader deletedRow) throws SQLException {
 		String table = deletedRow.getCurrentTable();
-		PrimaryKey pk = primaryKeys.get(table);
+		PrimaryKey pk = getPrimaryKey(database, deletedRow.getCurrentSchema(), table);
 		deletedRows.put(table, pk.keyValues(deletedRow));
 	}
 	
