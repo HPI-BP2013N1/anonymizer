@@ -741,6 +741,7 @@ public class Anonymizer {
 			truncateStatement.executeUpdate(
 					SQLHelper.truncateTable(anonymizedDatabase, 
 							qualifiedTableName));
+			anonymizedDatabase.commit();
 		} catch (SQLException e) {
 			anonymizerLogger.warning("Could not truncate table "
 					+ qualifiedTableName + ": " + e.getMessage());
