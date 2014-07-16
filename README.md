@@ -31,7 +31,7 @@ The following strategies for anonymizing your data are implemented:
     This method allows you to pseudonomize attributes. It gives every distinct value an own new pseudonym.  You can predefine prefixes, e.g. if you want to keep the "smell" of an attribute. For example: If you want to pseudonomize names, you can use "name" as prefix and the strategy will fill the remaining positions with pseudonyms. Use the additional info of *Config* to define prefixes.
 
 * __CharacterStrategy__
-    Here, you can pseudonymize your attributes characterwise. You can decide which character position you want to keep and which one to pseudonymize. Use the additional info of *Config* for specify the character pattern. Please notice: "K" stands for keeping these characters, "P" for pseudonymize those.
+    Here, you can pseudonymize your attributes characterwise. You can decide which character position you want to keep and which one to pseudonymize. Use the additional info of *Config* for specify the character pattern. Please notice: "K" stands for keeping these characters, "P" for pseudonymizing those others.
     
 * __DeleteRowStrategy__
     If you want to make sure that certain tuples are definitely not (not even anonymized) within the result database you can choose them to be deleted. Write it similar to SQL where-clause, but without "where". Use the additional info of *Config* for this.
@@ -70,40 +70,40 @@ Dependencies
 
 Config - the Configuration File
 -------------------------------
-Here, you can see an example for the *Config* file (please stick to the shown formatting (except "> "):
+Here, you can see an example for the *Config* file (please stick to the shown formatting:
 
-> # originalDB newDB transformationDB each with username password
-> jdbc:h2:mem:original name pw
-> jdbc:h2:mem:destination name pw
-> jdbc:h2:mem:transformations name pw
-> # schema name and batch size
-> ORIGINAL 10000
->
-> - Default: de.hpi.bp2013n1.anonymizer.SetDefaultStrategy
-> - P: de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy
-> - S: de.hpi.bp2013n1.anonymizer.CharacterStrategy
-> - U: de.hpi.bp2013n1.anonymizer.UniformDistributionStrategy
-> - Retain: de.hpi.bp2013n1.anonymizer.RetainRowStrategy
->
-> # Table.Field		Type		AdditionalInfo
-> VISITOR           Retain   SURNAME = 'Michael'
-> VISITOR.SURNAME	P
->   VISIT.VISITORSURNAME
-> VISITOR.BIRTHDATE	S	KKKKPPPP
->   VISIT.VISITORBIRTHDATE
-> VISITOR.ZIPCODE	P
-> VISITOR.ADDRESS	Default
->	#CINEMA.ADDRESS
->	#VISIT.CINEMAADDRESS
-> CINEMA.COMPANY	P	CinemaCompany
->	VISIT.CINEMACOMPANY
->	#GREATMOVIES.COMPANY
-> CINEMA.ADDRESS	P	Address
->	VISIT.CINEMAADDRESS
->	#VISITOR.ADDRESS
-> VISIT.MOVIE	    P	Movie
->	GREATMOVIES.MOVIE
-> PRODUCTSALES.PRODUCTID	U
+    # originalDB newDB transformationDB each with username password
+    jdbc:h2:mem:original name pw
+    jdbc:h2:mem:destination name pw
+    jdbc:h2:mem:transformations name pw
+    # schema name and batch size
+    ORIGINAL 10000
+    
+    - Default: de.hpi.bp2013n1.anonymizer.SetDefaultStrategy
+    - P: de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy
+    - S: de.hpi.bp2013n1.anonymizer.CharacterStrategy
+    - U: de.hpi.bp2013n1.anonymizer.UniformDistributionStrategy
+    - Retain: de.hpi.bp2013n1.anonymizer.RetainRowStrategy
+    
+    # Table.Field		Type		AdditionalInfo
+    VISITOR           Retain   SURNAME = 'Michael'
+    VISITOR.SURNAME	P
+        VISIT.VISITORSURNAME
+    VISITOR.BIRTHDATE	S	KKKKPPPP
+        VISIT.VISITORBIRTHDATE
+    VISITOR.ZIPCODE	P
+    VISITOR.ADDRESS	Default
+        #CINEMA.ADDRESS
+        #VISIT.CINEMAADDRESS
+    CINEMA.COMPANY	P	CinemaCompany
+        VISIT.CINEMACOMPANY
+        #GREATMOVIES.COMPANY
+    CINEMA.ADDRESS	P	Address
+        VISIT.CINEMAADDRESS
+        #VISITOR.ADDRESS
+    VISIT.MOVIE	    P	Movie
+        GREATMOVIES.MOVIE
+    PRODUCTSALES.PRODUCTID	U
 
 Lines that begin with "#" are comments and ignored during anonymization.
 
