@@ -39,11 +39,11 @@ public class ConstraintNameFinder {
 		this.connection = connection;
 	}
 
-	public List<Constraint> findConstraintName(TableField tableAlias) {
-		return findConstraintName(tableAlias.table);
+	public List<Constraint> findConstraintNames(TableField tableAlias) {
+		return findConstraintNames(tableAlias.table);
 	}
 
-	public List<Constraint> findConstraintName(String tableName) {
+	public List<Constraint> findConstraintNames(String tableName) {
 		ArrayList<Constraint> result = new ArrayList<Constraint>();
 		try {
 			DatabaseMetaData metaData = connection.getMetaData();

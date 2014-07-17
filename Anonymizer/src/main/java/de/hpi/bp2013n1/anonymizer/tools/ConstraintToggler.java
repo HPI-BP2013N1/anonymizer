@@ -107,13 +107,13 @@ public class ConstraintToggler {
 		for (Rule rule : config.rules) {
 			if (alreadyDoneTables.indexOf(rule.tableField.table) == -1) {
 				constraintList.addAll(finder
-						.findConstraintName(rule.tableField.table));
+						.findConstraintNames(rule.tableField.table));
 				alreadyDoneTables.add(rule.tableField.table);
 			}
 			for (TableField tableField : rule.dependants) {
 				if (alreadyDoneTables.indexOf(tableField.table) == -1) {
 					constraintList.addAll(finder
-							.findConstraintName(tableField.table));
+							.findConstraintNames(tableField.table));
 					alreadyDoneTables.add(tableField.table);
 				}
 			}
@@ -121,7 +121,7 @@ public class ConstraintToggler {
 
 		for (String tableName : scope.tables) {
 			if (alreadyDoneTables.indexOf(tableName) == -1) {
-				constraintList.addAll(finder.findConstraintName(tableName));
+				constraintList.addAll(finder.findConstraintNames(tableName));
 				alreadyDoneTables.add(tableName);
 			}
 		}

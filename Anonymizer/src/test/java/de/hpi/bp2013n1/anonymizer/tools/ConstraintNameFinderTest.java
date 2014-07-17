@@ -34,11 +34,11 @@ public class ConstraintNameFinderTest {
 			ddl.executeUpdate("CREATE TABLE TABLE5 (A INT, "
 					+ "FOREIGN KEY(A) REFERENCES TABLE1(A))");
 		}
-		assertThat(sut.findConstraintName("TABLE1"), hasSize(2));
-		assertThat(sut.findConstraintName("TABLE2"), hasSize(1));
-		assertThat(sut.findConstraintName("TABLE3"), hasSize(0));
-		assertThat(sut.findConstraintName("TABLE4"), hasSize(0));
-		assertThat(sut.findConstraintName("TABLE5"), hasSize(0));
+		assertThat(sut.findConstraintNames("TABLE1"), hasSize(2));
+		assertThat(sut.findConstraintNames("TABLE2"), hasSize(1));
+		assertThat(sut.findConstraintNames("TABLE3"), hasSize(0));
+		assertThat(sut.findConstraintNames("TABLE4"), hasSize(0));
+		assertThat(sut.findConstraintNames("TABLE5"), hasSize(0));
 	}
 
 }
