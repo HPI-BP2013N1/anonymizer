@@ -67,6 +67,7 @@ public class ForeignKeyDeletionsHandlerTest {
 		foreignKey.addForeignKeyColumn(parentColumnName, referencingColumnName);
 		String dependentTable = "TABLE2";
 		sut.dependencies.put(dependentTable, foreignKey);
+		sut.tablesWithDependants.add(parentTable);
 		// prepare some rows
 		int deletedPKValue = 0;
 		int otherPKValue = 1;
@@ -105,6 +106,7 @@ public class ForeignKeyDeletionsHandlerTest {
 		foreignKey.addForeignKeyColumn(parentColumnName2, referencingColumnName2);
 		String dependentTable = "TABLE2";
 		sut.dependencies.put(dependentTable, foreignKey);
+		sut.tablesWithDependants.add(parentTable);
 		// prepare some rows
 		int deletedPKValue1 = 0;
 		int deletedPKValue2 = 1;

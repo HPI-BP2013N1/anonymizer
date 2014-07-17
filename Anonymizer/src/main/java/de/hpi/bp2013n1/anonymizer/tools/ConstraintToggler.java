@@ -80,7 +80,7 @@ public class ConstraintToggler {
 						constraint.schemaName, constraint.tableName);
 				System.out.println("Disabling constraint "
 						+ constraint.constraintName + " on "
-						+ qualifiedTableName);
+						+ qualifiedTableName + "\r");
 				try {
 					disableStatement.execute(SQLHelper.disableForeignKey(
 							connection, qualifiedTableName,
@@ -177,7 +177,7 @@ public class ConstraintToggler {
 						constraint.schemaName, constraint.tableName);
 				System.out.println("Enabling constraint "
 						+ constraint.constraintName + " on "
-						+ qualifiedTableName);
+						+ qualifiedTableName + "\r");
 				try {
 					disableStatement.execute(SQLHelper.enableForeignKey(
 							connection, qualifiedTableName,

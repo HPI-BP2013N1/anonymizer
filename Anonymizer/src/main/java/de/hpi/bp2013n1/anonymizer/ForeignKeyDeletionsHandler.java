@@ -27,7 +27,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import com.google.common.collect.ArrayListMultimap;
@@ -55,6 +57,8 @@ public class ForeignKeyDeletionsHandler {
 				throws SQLException {
 			Map<String, Object> comparisons = new TreeMap<>();
 			for (Map.Entry<String, String> fkColumn : foreignKeyColumns.entrySet()) {
+				if (!parentPrimaryKey.columnNames.contains(fkColumn.getKey()))
+					continue; // not a primary key column, so irrelevant for existence check
 				comparisons.put(fkColumn.getKey(), row.getObject(fkColumn.getValue()));
 			}
 			return comparisons;
@@ -63,6 +67,7 @@ public class ForeignKeyDeletionsHandler {
 	
 	Map<String, PrimaryKey> primaryKeys = new HashMap<>();
 	Multimap<String, ForeignKey> dependencies = ArrayListMultimap.create();
+	Set<String> tablesWithDependants = new HashSet<>();
 	Multimap<String, Map<String, Object>> deletedRows = HashMultimap.create();
 	private Connection database;
 	
@@ -79,6 +84,7 @@ public class ForeignKeyDeletionsHandler {
 					String parentTable = importedKeys.getString("PKTABLE_NAME");
 					if (!tables.contains(parentTable))
 						continue;
+					tablesWithDependants.add(parentTable);
 					String fkName = importedKeys.getString("FK_NAME");
 					String fkNameAndTable = fkName + "." + parentTable;
 					String parentColumn = importedKeys.getString("PKCOLUMN_NAME");
@@ -108,8 +114,11 @@ public class ForeignKeyDeletionsHandler {
 	
 	public void rowHasBeenDeleted(ResultSetRowReader deletedRow) throws SQLException {
 		String table = deletedRow.getCurrentTable();
+		if (!tablesWithDependants.contains(table))
+			return;
 		PrimaryKey pk = getPrimaryKey(database, deletedRow.getCurrentSchema(), table);
 		deletedRows.put(table, pk.keyValues(deletedRow));
+		// TODO: if memory is still a problem, save rows in a local h2 database backed by a file with a large cache depending on the heap size
 	}
 	
 	public boolean hasParentRowBeenDeleted(ResultSetRowReader row) throws SQLException {
