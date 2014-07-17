@@ -106,7 +106,6 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 	@Override
 	public void prepareTableTransformation(TableRuleMap tableRules)
 			throws SQLException {
-		// TODO Auto-generated method stub
 
 	}
 

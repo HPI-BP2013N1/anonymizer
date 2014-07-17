@@ -299,11 +299,6 @@ public class UniformDistributionStrategyTest {
 
 	
 	@Test
-	public void testPrepareTableTransformation() {
-		// TODO: implement
-	}
-
-	@Test
 	public void testIsRuleValid() {
 		// TODO: implement
 	}
