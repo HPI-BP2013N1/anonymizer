@@ -83,6 +83,7 @@ public class Anonymizer {
 	ConstraintToggler toggler = new ConstraintToggler();
 	private RowRetainService retainService;
 	private ForeignKeyDeletionsHandler foreignKeyDeletions = new ForeignKeyDeletionsHandler();
+	private boolean skipRuleValidation;
 	
 	public static class TableNotInScopeException extends Exception {
 		private static final long serialVersionUID = -4527921975005958468L;
@@ -163,7 +164,7 @@ public class Anonymizer {
 		}
 	
 		try {
-			if (checkLengths() == 0)
+			if (skipRuleValidation || checkLengths() == 0)
 				try {
 					anonymize();
 				} catch (TransformationTableCreationException e) {
@@ -262,21 +263,24 @@ public class Anonymizer {
 	 * @throws Exception 
 	 */
 	public static void main(String[] args) throws Exception {			
-		if (args.length != 3) {
+		if (args.length < 3) {
 			System.err.println("Expected 3 Arguments\n" +
 					"1. : path to intermediary config file, \n" + 
 					"2. : path to scope file,\n" + 
 					"3. : desired name of logfile");
 			return;
-		}		
+		}
 		
-		setUpLogging(args[2]);
+		List<String> arguments = Lists.newArrayList(args);
+		boolean skipRuleValidation = arguments.remove("--skip-rule-validation");
+			
+		setUpLogging(arguments.get(2));
 				
 		Config config = new Config();
 		Scope scope = new Scope();
 		try {
 			anonymizerLogger.info("Reading config file.");
-			config.readFromFile(args[0]);
+			config.readFromFile(arguments.get(0));
 		} catch (IOException e) {
 			anonymizerLogger.severe("Could not read from config file: " 
 					+ e.getMessage());
@@ -288,13 +292,15 @@ public class Anonymizer {
 		}
 		try {
 			anonymizerLogger.info("Reading scope file");
-			scope.readFromFile(args[1]);
+			scope.readFromFile(arguments.get(1));
 		} catch (IOException e) {
 			anonymizerLogger.severe("Reading scope file failed: "
 					+ e.getMessage());
 			return;
 		}
 		Anonymizer anon = new Anonymizer(config, scope);
+		if (skipRuleValidation)
+			anon.skipRuleValidation = true;
 		try {
 			anon.connectAndRun();
 		} catch (FatalError e) {
