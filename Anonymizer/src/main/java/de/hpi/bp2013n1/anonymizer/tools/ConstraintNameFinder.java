@@ -49,16 +49,16 @@ public class ConstraintNameFinder {
 			DatabaseMetaData metaData = connection.getMetaData();
 			try (ResultSet resultSet = metaData.getExportedKeys(
 					connection.getCatalog(), null, tableName)) {
-				String lastFKName = null;
+				String lastFK = null;
 				while (resultSet.next()) {
 					String fkName = resultSet.getString("FK_NAME");
-					if (fkName.equals(lastFKName))
+					String fkSchema = resultSet.getString("FKTABLE_SCHEM");
+					String fkTable = resultSet.getString("FKTABLE_NAME");
+					String fk = fkName + "." + fkSchema + "." + fkTable;
+					if (fk.equals(lastFK))
 						continue;
-					result.add(new Constraint(
-							resultSet.getString("FKTABLE_SCHEM"), 
-							resultSet.getString("FKTABLE_NAME"), 
-							fkName));
-					lastFKName = fkName;
+					result.add(new Constraint(fkSchema, fkTable, fkName));
+					lastFK = fk;
 				}
 			}
 		} catch (SQLException e) {

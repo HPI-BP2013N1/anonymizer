@@ -71,21 +71,24 @@ public class ForeignKeyDeletionsHandler {
 		this.database = database;
 		DatabaseMetaData metaData = database.getMetaData();
 		for (String table : tables) {
-			try (ResultSet importedKeys = metaData.getImportedKeys(null, schema, table)) {
-				String previousFkName = null;
+			try (ResultSet importedKeys = metaData.getImportedKeys(
+					database.getCatalog(), schema, table)) {
+				String lastFK = null;
 				ForeignKey fk = null;
 				while (importedKeys.next()) {
 					String parentTable = importedKeys.getString("PKTABLE_NAME");
 					if (!tables.contains(parentTable))
 						continue;
 					String fkName = importedKeys.getString("FK_NAME");
+					String fkNameAndTable = fkName + "." + parentTable;
 					String parentColumn = importedKeys.getString("PKCOLUMN_NAME");
 					String referencingColumn = importedKeys.getString("FKCOLUMN_NAME");
 					PrimaryKey referencedPK = getPrimaryKey(database, schema,
 							parentTable);
-					if (!fkName.equals(previousFkName)) {
+					if (!fkNameAndTable.equals(lastFK)) {
 						fk = new ForeignKey(parentTable, referencedPK);
 						dependencies.put(table, fk);
+						lastFK = fkNameAndTable;
 					}
 					fk.addForeignKeyColumn(parentColumn, referencingColumn);
 				}

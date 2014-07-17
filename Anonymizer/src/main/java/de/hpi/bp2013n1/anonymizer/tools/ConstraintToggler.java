@@ -87,8 +87,9 @@ public class ConstraintToggler {
 							constraint.constraintName));
 				} catch (SQLException e) {
 					logger.warning(String.format(
-							"Could not disable constraint %s: %s",
-							constraint.constraintName, e.getMessage()));
+							"Could not disable constraint %s on %s: %s",
+							constraint.constraintName, qualifiedTableName, 
+							e.getMessage()));
 				}
 			}
 		} catch (SQLException e) {
@@ -183,8 +184,9 @@ public class ConstraintToggler {
 							constraint.constraintName));
 				} catch (SQLException e) {
 					logger.warning(String.format(
-							"Could not enable constraint %s: %s",
-							constraint.constraintName, e.getMessage()));
+							"Could not enable constraint %s on %s: %s",
+							constraint.constraintName, qualifiedTableName,
+							e.getMessage()));
 				}
 			}
 		} catch (SQLException e) {
