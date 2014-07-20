@@ -23,11 +23,13 @@ package de.hpi.bp2013n1.anonymizer;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
+import static org.mockito.Matchers.*;
 import static org.mockito.Mockito.*;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.TreeMap;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -37,6 +39,8 @@ import org.mockito.Mockito;
 import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedExection;
+import de.hpi.bp2013n1.anonymizer.UniformDistributionStrategy.AdditionalInfo;
+import de.hpi.bp2013n1.anonymizer.UniformDistributionStrategy.ColumnValueParameters;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
@@ -301,6 +305,63 @@ public class UniformDistributionStrategyTest {
 	@Test
 	public void testIsRuleValid() {
 		// TODO: implement
+	}
+	
+	@Test
+	public void testAdditionalInfoParsing() {
+		AdditionalInfo info;
+		info = AdditionalInfo.parse("SUBSTR(..., 1, 2)", "A");
+		assertThat(info.columnExpressionWithPlaceholder, is("SUBSTR(..., 1, 2)"));
+		assertThat(info.lowerRowThreshold, is(0f));
+		info = AdditionalInfo.parse("1 + ...; REQUIRE MIN 10%", "A");
+		assertThat(info.columnExpressionWithPlaceholder, is("1 + ..."));
+		assertThat(info.lowerRowThreshold, is(0.1f));
+		info = AdditionalInfo.parse("1 + ...; REQUIRE at least 10%", "B");
+		assertThat(info.columnExpressionWithPlaceholder, is("1 + ..."));
+		assertThat(info.lowerRowThreshold, is(0.1f));
+		info = AdditionalInfo.parse("1 + ...; REQUIRE MIN 10", "A");
+		assertThat(info.columnExpressionWithPlaceholder, is("1 + ..."));
+		assertThat(info.lowerRowThreshold, is(10f));
+		info = AdditionalInfo.parse("1 + ...; REQUIRE at MIN 76", "A");
+		assertThat(info.columnExpressionWithPlaceholder, is("1 + ..."));
+		assertThat(info.lowerRowThreshold, is(76f));
+		info = AdditionalInfo.parse("1 + ...; REQUIRE at MINimum 82.1 %", "A");
+		assertThat(info.columnExpressionWithPlaceholder, is("1 + ..."));
+		assertThat(info.lowerRowThreshold, is(0.821f));
+		info = AdditionalInfo.parse("REQUIRE at MINimum 82.1%; ... || 'B'", "A");
+		assertThat(info.columnExpressionWithPlaceholder, is(" ... || 'B'"));
+		assertThat(info.lowerRowThreshold, is(0.821f));
+	}
+	
+	@Test
+	public void testShouldBeRemoved() throws SQLException {
+		ResultSetRowReader row = mock(ResultSetRowReader.class);
+		ColumnValueParameters valueParameters = sut.new ColumnValueParameters();
+		valueParameters.columnExpression = "A";
+		valueParameters.existingCardinalities = new TreeMap<>();
+		valueParameters.targetCardinality = 2l;
+		// should be removed if targetCardinality is exceeded
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 1));
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 2));
+		assertTrue(sut.shouldBeRemoved(row, valueParameters, 3));
+		valueParameters.targetCardinality = 1l;
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 1));
+		assertTrue(sut.shouldBeRemoved(row, valueParameters, 2));
+		assertTrue(sut.shouldBeRemoved(row, valueParameters, 3));
+		// should be removed if lowerThreshold is not met
+		valueParameters.targetCardinality = 3l;
+		valueParameters.lowerThreshold = 2l;
+		assertTrue(sut.shouldBeRemoved(row, valueParameters, 1));
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 2));
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 3));
+		assertTrue(sut.shouldBeRemoved(row, valueParameters, 4));
+		// always retain if marked so
+		when(retainServiceMock.currentRowShouldBeRetained(anyString(), anyString(), eq(row)))
+		.thenReturn(true);
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 1));
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 2));
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 3));
+		assertFalse(sut.shouldBeRemoved(row, valueParameters, 4));
 	}
 
 }
