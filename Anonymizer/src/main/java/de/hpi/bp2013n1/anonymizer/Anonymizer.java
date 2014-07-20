@@ -579,6 +579,30 @@ public class Anonymizer {
 				return;
 			}
 		}
+		// apply rules which have no column name specified first
+		// because these are likely to be retain or delete instructions
+		for (Rule configRule : tableRuleMap.getRules(null)) {
+			if (Iterables.isEmpty(
+					anonymizeValue(null, configRule, rowReader, null, tableRuleMap))) {
+				if (retainRow 
+						|| retainService.currentRowShouldBeRetained(
+								configRule.tableField.schema, 
+								configRule.tableField.table,
+								rowReader)) {
+					// skip this transformation which deleted the tuple
+					anonymizerLogger.info(
+							"Not deleting a row in " 
+									+ qualifiedTableName + " because it "
+									+ "was previously marked to be "
+									+ "retained.");
+					retainRow = true;
+					continue;
+				}
+				foreignKeyDeletions.rowHasBeenDeleted(rowReader);
+				return;
+			}
+		}
+		// apply rules to specific columns
 		List<Iterable<?>> columnValues = new ArrayList<>(columnCount);
 		for (int j = 1; j <= columnCount; j++) { // for all columns
 			String columnName = rsMeta.getColumnName(j);
