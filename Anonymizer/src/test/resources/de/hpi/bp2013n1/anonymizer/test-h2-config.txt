@@ -9,6 +9,7 @@ ORIGINAL 10000
 - P: de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy
 - S: de.hpi.bp2013n1.anonymizer.CharacterStrategy
 - U: de.hpi.bp2013n1.anonymizer.UniformDistributionStrategy
+- keep: de.hpi.bp2013n1.anonymizer.RetainRowStrategy
 
 # Table.Field		Type		AdditionalInfo
 VISITOR.SURNAME	P
@@ -27,4 +28,5 @@ CINEMA.ADDRESS	P	Address
 	#VISITOR.ADDRESS
 VISIT.MOVIE	P	Movie
 	GREATMOVIES.MOVIE
+PRODUCTSALES	keep	SALEID='1'
 PRODUCTSALES.PRODUCTID	U
