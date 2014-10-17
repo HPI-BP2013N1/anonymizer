@@ -90,6 +90,32 @@ public class RetainRowStrategyTest {
 				retainService.currentRowShouldBeRetained("PUBLIC", "ATABLE",
 				rowReaderMock), is(false));
 	}
+	
+	@Test
+	public void testOriginalRowIsRelevant() throws SQLException, TransformationFailedException {
+		try (Statement createTable = testData.originalDbConnection.createStatement()) {
+			createTable.executeUpdate("CREATE TABLE ATABLE (ACOLUMN INT PRIMARY KEY)");
+		}
+		try (PreparedStatement insert = testData.originalDbConnection.prepareStatement(
+				"INSERT INTO ATABLE (ACOLUMN) VALUES (?)")) {
+			insert.setInt(1, 0);
+			insert.executeUpdate();
+		}
+		Rule retainRule = new Rule();
+		retainRule.additionalInfo = "ACOLUMN = 0";
+		ResultSetRowReader rowReaderMock = mock(ResultSetRowReader.class);
+		when(rowReaderMock.getCurrentSchema()).thenReturn("PUBLIC");
+		when(rowReaderMock.getCurrentTable()).thenReturn("ATABLE");
+		when(rowReaderMock.getObject("ACOLUMN")).thenReturn(0);
+		assumeThat(retainService.currentRowShouldBeRetained("PUBLIC", "ATABLE", 
+				rowReaderMock), is(false));
+		// note that the first parameter is deliberately different
+		// from the value returned by the row reader mock
+		sut.transform(1, retainRule, rowReaderMock);
+		assertThat("Rows should be matched with their original values",
+				retainService.currentRowShouldBeRetained("PUBLIC", "ATABLE",
+				rowReaderMock), is(true));
+	}
 
 	@Test
 	public void testIsRuleValid() throws RuleValidationException, SQLException {
