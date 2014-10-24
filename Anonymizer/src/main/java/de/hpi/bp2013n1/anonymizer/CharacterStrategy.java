@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import com.google.common.collect.Lists;
@@ -104,32 +105,50 @@ public class CharacterStrategy extends TransformationStrategy {
 		HashMap<Character, Character> newCharacterMapping = new HashMap<>();
 		
 		fetchCharacterMapping(schemaName);
-		StringBuilder patternBuilder = new StringBuilder();
-		patternBuilder.append('[');
-		for (Character c : characterMapping.keySet()) {
-			patternBuilder.append(c);
+		char[] newLowerCaseCharacters;
+		char[] newUpperCaseCharacters;
+		char[] newNumbers;
+		if (!characterMapping.isEmpty()) {
+			StringBuilder patternBuilder = new StringBuilder();
+			patternBuilder.append('[');
+			for (Character c : characterMapping.keySet()) {
+				patternBuilder.append(c);
+			}
+			patternBuilder.append(']');
+			newLowerCaseCharacters = lowerCaseCharacters().replaceAll(
+					patternBuilder.toString(), "").toCharArray();
+			newUpperCaseCharacters = upperCaseCharacters().replaceAll(
+					patternBuilder.toString(), "").toCharArray();
+			newNumbers = numberCharacters().replaceAll(
+					patternBuilder.toString(), "").toCharArray();
+		} else {
+			newLowerCaseCharacters = lowerCaseCharacterArray();
+			newUpperCaseCharacters = upperCaseCharacterArray();
+			newNumbers = numberArray();
 		}
-		patternBuilder.append(']');
-		char[] newLowerCaseCharacters = lowerCaseCharacters().replaceAll(
-				patternBuilder.toString(), "").toCharArray();
-		char[] newUpperCaseCharacters = upperCaseCharacters().replaceAll(
-				patternBuilder.toString(), "").toCharArray();
-		char[] newNumbers = numberCharacters().replaceAll(
-				patternBuilder.toString(), "").toCharArray();
 		
-		StringBuilder usedPseudonymsPattern = new StringBuilder();
-		usedPseudonymsPattern.append('[');
-		for (Character c : characterMapping.values()) {
-			usedPseudonymsPattern.append(c);
-		}
-		usedPseudonymsPattern.append(']');
 		// TODO: test if a new mapping is random
-		char[] newLowerCasePseudonyms = lowerCaseCharacters().replaceAll(
-				usedPseudonymsPattern.toString(), "").toCharArray();
-		char[] newUpperCasePseudonyms = upperCaseCharacters().replaceAll(
-				usedPseudonymsPattern.toString(), "").toCharArray();
-		char[] newPseudonymNumbers = numberCharacters().replaceAll(
-				usedPseudonymsPattern.toString(), "").toCharArray();
+		char[] newLowerCasePseudonyms;
+		char[] newUpperCasePseudonyms;
+		char[] newPseudonymNumbers;
+		if (!characterMapping.isEmpty()) {
+			StringBuilder usedPseudonymsPattern = new StringBuilder();
+			usedPseudonymsPattern.append('[');
+			for (Character c : characterMapping.values()) {
+				usedPseudonymsPattern.append(c);
+			}
+			usedPseudonymsPattern.append(']');
+			newLowerCasePseudonyms = lowerCaseCharacters().replaceAll( 
+					usedPseudonymsPattern.toString(), "").toCharArray();      
+			newUpperCasePseudonyms = upperCaseCharacters().replaceAll( 
+			usedPseudonymsPattern.toString(), "").toCharArray();      
+			newPseudonymNumbers = numberCharacters().replaceAll(       
+			usedPseudonymsPattern.toString(), "").toCharArray();      
+		} else {
+			newLowerCasePseudonyms = lowerCaseCharacterArray();
+			newUpperCasePseudonyms = upperCaseCharacterArray();
+			newPseudonymNumbers = numberArray();
+		}
 		
 		for (int i = 0; i < newLowerCasePseudonyms.length; i++)
 			newCharacterMapping.put(newLowerCaseCharacters[i],
