@@ -24,6 +24,7 @@ package de.hpi.bp2013n1.anonymizer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -36,6 +37,8 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.operation.DatabaseOperation;
 import org.h2.tools.RunScript;
+
+import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
@@ -71,9 +74,25 @@ public class TestDataFixture implements AutoCloseable {
 
 	private void readConfigAndScope() throws Exception, IOException {
 		config = new Config();
-		config.readFromURL(TestDataFixture.class.getResource("test-h2-config.txt"));
+		config.readFromURL(getConfigURL());
 		scope = new Scope();
-		scope.readFromURL(AnonymizerCompleteTest.class.getResource("testscope.txt"));
+		scope.readFromURL(getScopeURL());
+	}
+
+	/**
+	 * Template method which provides the URL to a scope file resource.
+	 * @return
+	 */
+	protected URL getScopeURL() {
+		return AnonymizerCompleteTest.class.getResource("testscope.txt");
+	}
+
+	/**
+	 * Template method which provides the URL to a config file resource.
+	 * @return
+	 */
+	protected URL getConfigURL() {
+		return TestDataFixture.class.getResource("test-h2-config.txt");
 	}
 
 	private void createDbConnections() throws IOException,
@@ -89,14 +108,62 @@ public class TestDataFixture implements AutoCloseable {
 
 	public void populateDatabases(String schemaName) 
 			throws DatabaseUnitException, IOException, SQLException {
-		executeDdlScript("testschema.ddl.sql", originalDbConnection);
-		executeDdlScript("testschema.ddl.sql", destinationDbConnection);
-		executeDdlScript("testpseudonymsschema.ddl.sql", transformationDbConnection);
-		importData(originalDbConnection, schemaName, "testdata.xml");
-		importData(transformationDbConnection, schemaName,
-				"testpseudonyms.xml");
+		for (InputStream ddlStream : getDDLs()) {
+			executeDdlScript(ddlStream, originalDbConnection);
+		}
+		for (InputStream ddlStream : getDDLs()) {
+			// cannot do this in the loop above because
+			// the resources InputStreams cannot be reset
+			executeDdlScript(ddlStream, destinationDbConnection);
+		}
+		for (InputStream ddlStream : getTransformationDDLs()) {
+			executeDdlScript(ddlStream, transformationDbConnection);
+		}
+		InputStream originalDataSet = getOriginalDataSet();
+		if (originalDataSet != null)
+			importData(originalDbConnection, schemaName, originalDataSet);
+		InputStream transformationDataSet = getTransformationDataSet();
+		if (transformationDataSet != null)
+			importData(transformationDbConnection, schemaName, transformationDataSet);
 	}
 
+	/**
+	 * Template method for datasets that should be inserted into the original database.
+	 * @return
+	 */
+	protected InputStream getOriginalDataSet() {
+		return TestDataFixture.class.getResourceAsStream("testdata.xml");
+	}
+
+	/**
+	 * Template method for datasets that should be inserted into the 
+	 * transformation database.
+	 * @return
+	 */
+	protected InputStream getTransformationDataSet() {
+		return TestDataFixture.class.getResourceAsStream("testpseudonyms.xml");
+	}
+
+	/**
+	 * Template method for DDLs that should be applied to the original and
+	 * destination database.
+	 * @return
+	 */
+	protected Iterable<InputStream> getDDLs() {
+		return Lists.newArrayList(
+				TestDataFixture.class.getResourceAsStream("testschema.ddl.sql"));
+	}
+
+	/**
+	 * Template method for DDLs that should be applied to the 
+	 * transformation database.
+	 * @return
+	 */
+	protected Iterable<InputStream> getTransformationDDLs() {
+		return Lists.newArrayList(
+				TestDataFixture.class.getResourceAsStream("testpseudonymsschema.ddl.sql"));
+	}
+	
 	void setSchema() throws SQLException {
 		try (Statement s = originalDbConnection.createStatement()) {
 			s.execute("SET SCHEMA = " + config.schemaName);
@@ -112,22 +179,19 @@ public class TestDataFixture implements AutoCloseable {
 		// destinationDbConnection.setSchema(config.schemaName);
 	}
 
-	private static void executeDdlScript(String scriptFileName,
+	private static void executeDdlScript(InputStream ddlStream, 
 			Connection dbConnection) throws SQLException, IOException {
-		try (InputStream ddlStream = TestDataFixture.class
-				.getResourceAsStream(scriptFileName);
-				InputStreamReader ddlReader = new InputStreamReader(ddlStream)) {
+		try (InputStreamReader ddlReader = new InputStreamReader(ddlStream)) {
 			RunScript.execute(dbConnection, ddlReader);
 		}
 	}
 
 	private static void importData(Connection connection, String schemaName,
-			String dataSetFilename) throws DatabaseUnitException, IOException,
+			InputStream dataSetFileStream) throws DatabaseUnitException, IOException,
 			SQLException {
 		IDatabaseConnection db = new DatabaseConnection(connection, schemaName);
 		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
-		IDataSet data = dataSetBuilder.build(TestDataFixture.class
-				.getResourceAsStream(dataSetFilename));
+		IDataSet data = dataSetBuilder.build(dataSetFileStream);
 		DatabaseOperation.CLEAN_INSERT.execute(db, data);
 	}
 	
