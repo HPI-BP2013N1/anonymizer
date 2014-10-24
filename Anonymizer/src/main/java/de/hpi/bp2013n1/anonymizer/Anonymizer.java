@@ -51,7 +51,6 @@ import de.hpi.bp2013n1.anonymizer.TransformationStrategy.FetchPseudonymsFailedEx
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedExection;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.TransformationFailedException;
 import de.hpi.bp2013n1.anonymizer.db.BatchOperation;
-import de.hpi.bp2013n1.anonymizer.db.ColumnDatatypeDescription;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.AnonymizerUtils;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
@@ -164,7 +163,7 @@ public class Anonymizer {
 		}
 	
 		try {
-			if (skipRuleValidation || checkLengths() == 0)
+			if (skipRuleValidation || validateRules() == 0)
 				try {
 					anonymize();
 				} catch (TransformationTableCreationException e) {
@@ -319,46 +318,14 @@ public class Anonymizer {
 		logFileHandler.setFormatter(logFormatter);
 	}
 	
-	public int checkLengths() throws SQLException {
+	public int validateRules() throws SQLException {
 		anonymizerLogger.info("Checking whether the transformation rules are valid.");
 		int numberOfErrors = 0;
+		RuleValidator ruleValidator = new RuleValidator(strategyByClassName, 
+				anonymizedDatabase.getMetaData());
 		for (Rule rule : config.rules) {
-			TableField tableField = rule.tableField;
-			String query = "select count (distinct onlyDistinctValuesXYZ) anzahl from (";
-			query = query + "(select distinct " + tableField.column + " onlyDistinctValuesXYZ from " + tableField.schemaTable() + ")";
-			for (TableField tf : rule.dependants) {
-				query = query + " union (select distinct " + tf.column + " onlyDistinctValuesXYZ from " + tf.schemaTable() + ")";
-			}
-			query = query + ")";
-			
-			Statement originalStatement = originalDatabase.createStatement();
-			
-			ResultSet resultSet = originalStatement.executeQuery(query);
-			resultSet.next();
-			int count = resultSet.getInt("anzahl");
-
-			ColumnDatatypeDescription description = 
-					AnonymizerUtils.getColumnDatatypeDescription(
-							tableField, originalDatabase);
-			if (rule.strategy.equals(PseudonymizeStrategy.class.getName())) {
-				switch (description.typename) {
-				// TODO: extract constants
-				case "CHARACTER":
-				case "CHAR":
-					if (description.length < ((int) Math.ceil(Math.log(count) / Math.log(62)) + rule.additionalInfo.length())) {
-						anonymizerLogger.severe("Too many values for pseudonymization of " + rule.tableField + ". Please check the config-file.");
-						numberOfErrors++;
-					}
-					break;
-				case "VARCHAR":
-					if (description.length < ((int) Math.ceil(Math.log(count) / Math.log(62)) + rule.additionalInfo.length())) {
-						anonymizerLogger.severe("Too many values for pseudonymization of " + rule.tableField + ". Please check the config-file.");			
-						numberOfErrors++;
-					}
-					break;
-				default:
-					break;
-				}
+			if (!ruleValidator.isValid(rule)) {
+				numberOfErrors++;
 			}
 		}
 		return numberOfErrors;
@@ -699,7 +666,7 @@ public class Anonymizer {
 					". Used empty String instead.",
 					e);
 		} catch (SQLException e) {
-			anonymizerLogger.severe("SQL error while transforming value "
+			anonymizerLogger.severe("SQL error while transforming value \""
 					+ currentValue + "\" (from table " + 
 					tableRules.tableName + "." + columnName + 
 					") : " + e.getMessage() + ". Using empty String instead.");

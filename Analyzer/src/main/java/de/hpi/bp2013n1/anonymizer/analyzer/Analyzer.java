@@ -40,8 +40,8 @@ import java.util.Queue;
 import java.util.logging.Logger;
 
 import de.hpi.bp2013n1.anonymizer.Anonymizer;
+import de.hpi.bp2013n1.anonymizer.RuleValidator;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy;
-import de.hpi.bp2013n1.anonymizer.TransformationStrategy.RuleValidationException;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
@@ -76,6 +76,7 @@ public class Analyzer {
 	
 	static Logger logger = Logger.getLogger(Analyzer.class.getName());
 	private Map<String, TransformationStrategy> strategies;
+	private RuleValidator ruleValidator;
 	
 	public Analyzer(Connection con, Config config, Scope scope){
 		this.connection = con;
@@ -93,10 +94,11 @@ public class Analyzer {
 			System.out.println("> Processing Rules");
 			Iterator<Rule> ruleIterator = config.rules.iterator();
 			DatabaseMetaData metaData = connection.getMetaData();
+			ruleValidator = new RuleValidator(strategies, metaData);
 			while (ruleIterator.hasNext()) {
 				Rule rule = ruleIterator.next();
 				System.out.println("  Rule: " + rule.tableField);
-				if (!validateRule(rule, metaData)) {
+				if (!ruleValidator.isValid(rule)) {
 					ruleIterator.remove();
 					logger.warning("Skipping rule " + rule);
 					continue;
@@ -197,44 +199,6 @@ public class Analyzer {
 			}
 		}
 	}
-
-
-
-	private boolean validateRule(Rule rule, DatabaseMetaData metaData) {
-		String typename = "";
-		int length = 0;
-		boolean nullAllowed = false;
-		if (rule.tableField.column != null) {
-			try (ResultSet column = metaData.getColumns(null, 
-					rule.tableField.schema, 
-					rule.tableField.table,
-					rule.tableField.column)) {
-				column.next();
-				typename = column.getString("TYPE_NAME");
-				length = column.getInt("COLUMN_SIZE");
-				nullAllowed = column.getInt("NULLABLE") == DatabaseMetaData.columnNullable;
-			} catch (SQLException e) {
-				logger.severe("Field " + rule.tableField + " does not exist in the schema.");
-				return false;
-			}
-		}
-		
-		// let the strategies validate their rules
-		boolean strategyIsValid = true;
-		try {
-			strategyIsValid = strategies.get(rule.strategy).isRuleValid(
-					rule, typename, length, nullAllowed);
-		} catch (RuleValidationException e) {
-			logger.severe("Could not validate rule " + rule + ": " 
-					+ e.getMessage());
-			return false;
-		}
-		if (!strategyIsValid) {
-			return false;
-		}
-		return true;
-	}
-
 
 
 	private Map<String, TransformationStrategy> loadAndInstanciateStrategies()

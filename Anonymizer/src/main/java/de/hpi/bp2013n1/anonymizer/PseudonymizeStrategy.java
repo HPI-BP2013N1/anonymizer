@@ -376,17 +376,15 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 				return false;
 			}
 
-
 			try (Statement stmt = originalDatabase.createStatement();
 				ResultSet rs = stmt.executeQuery(
-						"SELECT COUNT(DISTINCT " + rule.tableField.column + ") "
-								+ "FROM " + rule.tableField.schemaTable())) {
+						selectDistinctValuesFromParentAndDependentColumns(rule))) {
 				rs.next();
 				int count = rs.getInt(1);
 				if (rule.additionalInfo.length() 
 						+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS)) 
 						> length) {
-					System.err.println("ERROR: Provided default value is too long to pseudonymize. prefix: " + rule.additionalInfo.length() 
+					System.err.println("ERROR: Provided prefix is too long to pseudonymize. prefix: " + rule.additionalInfo.length() 
 							+ " required: " + Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS)) + " allowed: " + length + ". Skipping");
 					return false;
 				}
@@ -399,5 +397,22 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			}
 		}
 		return true;
+	}
+
+	private String selectDistinctValuesFromParentAndDependentColumns(Rule rule) {
+		TableField tableField = rule.tableField;
+		// rename columns to onlyDistinctValuesXYZ so you can make a union
+		StringBuilder query = new StringBuilder(
+				"select count (distinct onlyDistinctValuesXYZ) from (");
+		query.append("(select distinct ").append(tableField.column)
+		.append(" onlyDistinctValuesXYZ from ").append(tableField.schemaTable())
+		.append(")");
+		for (TableField tf : rule.dependants) {
+			query.append(" union (select distinct ").append(tf.column)
+			.append(" onlyDistinctValuesXYZ from ").append(tf.schemaTable())
+			.append(")");
+		}
+		query.append(")");
+		return query.toString();
 	}
 }
