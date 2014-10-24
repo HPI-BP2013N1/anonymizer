@@ -1,0 +1,14 @@
+# originalDB newDB transformationDB each with username password
+jdbc:h2:mem: - -
+jdbc:h2:mem: - -
+jdbc:h2:mem: - -
+# schema name and batch size
+PUBLIC 10000
+
+- DeleteWhere: de.hpi.bp2013n1.anonymizer.DeleteRowStrategy
+- nop: de.hpi.bp2013n1.anonymizer.NoOperationStrategy
+
+# Table.Field		Type		AdditionalInfo
+TABLE1.PARENT       DeleteWhere PARENT = 0
+TABLE1.PARENT       nop
+	TABLE2.DEPENDANT

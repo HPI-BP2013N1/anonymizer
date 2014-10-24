@@ -25,6 +25,7 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -34,7 +35,11 @@ import java.util.TreeMap;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
+
+import de.hpi.bp2013n1.anonymizer.db.TableField;
+import de.hpi.bp2013n1.anonymizer.shared.Rule;
 
 public class ForeignKeyDeletionsHandler {
 	
@@ -65,10 +70,10 @@ public class ForeignKeyDeletionsHandler {
 		}
 	}
 	
-	Map<String, PrimaryKey> primaryKeys = new HashMap<>();
-	Multimap<String, ForeignKey> dependencies = ArrayListMultimap.create();
+	Map<String, PrimaryKey> primaryKeys = new HashMap<>(); // table -> PK
+	Multimap<String, ForeignKey> dependencies = ArrayListMultimap.create(); // child table -> FKs
 	Set<String> tablesWithDependants = new HashSet<>();
-	Multimap<String, Map<String, Object>> deletedRows = HashMultimap.create();
+	Multimap<String, Map<String, Object>> deletedRows = HashMultimap.create(); // table -> deleted PK values
 	private Connection database;
 	
 	public void determineForeignKeysAmongTables(Connection database,
@@ -129,6 +134,39 @@ public class ForeignKeyDeletionsHandler {
 				return true;
 		}
 		return false;
+	}
+
+	public void addForeignKeysForRuleDependents(Collection<Rule> rules) {
+		for (Rule rule : rules) {
+			addForeignKeyForRuleDependents(rule);
+		}
+	}
+
+	private void addForeignKeyForRuleDependents(Rule rule) {
+		for (TableField dependentField : rule.dependants) {
+			Collection<ForeignKey> fks = dependencies.get(dependentField.table);
+			if (isColumnPartOfForeignKey(dependentField, fks))
+				continue;
+			addArtificialForeignKey(rule, dependentField);
+		}
+	}
+
+	private boolean isColumnPartOfForeignKey(TableField dependentField,
+			Collection<ForeignKey> fks) {
+		for (ForeignKey fk : fks) {
+			if (fk.foreignKeyColumns.values().contains(dependentField.column))
+				return true; // this field is taken care of already
+		}
+		return false;
+	}
+
+	private void addArtificialForeignKey(Rule rule, TableField dependentField) {
+		ForeignKey newFK = new ForeignKey(rule.tableField.table, 
+				new PrimaryKey(Lists.newArrayList(rule.tableField.column),
+						Lists.newArrayList((String) null)));
+		newFK.addForeignKeyColumn(rule.tableField.column, dependentField.column);
+		dependencies.put(dependentField.table, newFK);
+		tablesWithDependants.add(rule.tableField.table);
 	}
 
 }

@@ -355,6 +355,7 @@ public class Anonymizer {
 			anonymizerLogger.severe("Could not determine relationships in the "
 					+ "source database: " + e.getMessage());
 		}
+		foreignKeyDeletions.addForeignKeysForRuleDependents(config.rules);
 		List<Constraint> constraints = disableAnonymizedDbConstraints();
 
 		prepareTransformations();

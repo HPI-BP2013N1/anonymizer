@@ -46,6 +46,11 @@ class PrimaryKey {
 		// let the caller fill it
 	}
 	
+	public PrimaryKey(List<String> columnNames, List<String> columnTypeNames) {
+		this.columnNames = columnNames;
+		this.columnTypeNames = columnTypeNames;
+	}
+	
 	public PrimaryKey(String schema, String table, Connection database) throws SQLException {
 		DatabaseMetaData metaData = database.getMetaData();
 		try (ResultSet pkResultSet = metaData.getPrimaryKeys(null, schema, table)) {

@@ -209,7 +209,7 @@ public class TestDataFixture implements AutoCloseable {
 				.getResourceAsStream("transformed-testdata.xml"));
 	}
 	
-	IDataSet actualDestinationDataSet() throws DatabaseUnitException, SQLException {
+	protected IDataSet actualDestinationDataSet() throws DatabaseUnitException, SQLException {
 		IDatabaseConnection destination = new DatabaseConnection(
 				destinationDbConnection, config.schemaName);
 		return destination.createDataSet();
@@ -230,6 +230,13 @@ public class TestDataFixture implements AutoCloseable {
 	@Override
 	public void close() throws SQLException {
 		closeConnections();
+	}
+
+	public void assertExpectedEqualsActualDataSet()
+			throws DatabaseUnitException, SQLException, DataSetException {
+		IDataSet actualDataSet = actualDestinationDataSet();
+		IDataSet expectedDataSet = expectedDestinationDataSet();
+		org.dbunit.Assertion.assertEquals(expectedDataSet, actualDataSet);
 	}
 
 	public static Config makeStubConfig() {
