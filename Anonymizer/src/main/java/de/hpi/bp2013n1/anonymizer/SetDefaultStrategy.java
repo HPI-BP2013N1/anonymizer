@@ -69,7 +69,10 @@ public class SetDefaultStrategy extends TransformationStrategy {
 		}
 		
 		// check for default is valid
-		if (rule.additionalInfo.length() != 0 && rule.additionalInfo.length() > length) {
+		if ((typename.equals("VARCHAR") || typename.equals("CHAR") 
+				|| typename.equals("CHARACTER")) 
+				&& rule.additionalInfo.length() != 0 
+				&& rule.additionalInfo.length() > length) {
 			logger.severe("Provided default value is longer than maximum field "
 					+ "length of " + length + ". Skipping");
 			return false;						
