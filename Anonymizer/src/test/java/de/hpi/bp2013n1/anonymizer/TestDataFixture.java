@@ -41,6 +41,7 @@ import org.h2.tools.RunScript;
 import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.shared.Config;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
 
@@ -51,7 +52,7 @@ public class TestDataFixture implements AutoCloseable {
 	Config config;
 	Scope scope;
 	
-	public TestDataFixture() throws Exception {
+	public TestDataFixture() throws IOException, DependantWithoutRuleException, ClassNotFoundException, SQLException  {
 		readConfigAndScope();
 		createDbConnections();
 	}
@@ -65,14 +66,14 @@ public class TestDataFixture implements AutoCloseable {
 
 	public TestDataFixture(Connection originalDbConnection,
 			Connection destinationDbConnection,
-			Connection transformationDbConnection) throws IOException, Exception {
+			Connection transformationDbConnection) throws IOException, DependantWithoutRuleException {
 		readConfigAndScope();
 		this.originalDbConnection = originalDbConnection;
 		this.destinationDbConnection = destinationDbConnection;
 		this.transformationDbConnection = transformationDbConnection;
 	}
 
-	private void readConfigAndScope() throws Exception, IOException {
+	private void readConfigAndScope() throws IOException, DependantWithoutRuleException {
 		config = new Config();
 		config.readFromURL(getConfigURL());
 		scope = new Scope();
