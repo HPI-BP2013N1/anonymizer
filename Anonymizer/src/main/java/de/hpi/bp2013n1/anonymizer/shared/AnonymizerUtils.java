@@ -21,13 +21,8 @@ package de.hpi.bp2013n1.anonymizer.shared;
  */
 
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
 import java.util.ArrayList;
 
-import de.hpi.bp2013n1.anonymizer.db.ColumnDatatypeDescription;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class AnonymizerUtils {
@@ -56,22 +51,6 @@ public class AnonymizerUtils {
 			}
 		}
 		return result;
-	}
-
-	
-	public static ColumnDatatypeDescription getColumnDatatypeDescription(
-			TableField tableField, Connection connection) 
-					throws SQLException {
-		try (PreparedStatement selectColumnStatement = connection.prepareStatement(
-				"SELECT " + tableField.column 
-				+ " FROM " + tableField.schemaTable()
-				+ " WHERE 1 = 0")) {
-			ResultSetMetaData metadata = selectColumnStatement.getMetaData();
-			// TODO: consider using getColumnType with java.sql.Types
-			String typename = metadata.getColumnTypeName(1);
-			int length = metadata.getColumnDisplaySize(1);
-			return new ColumnDatatypeDescription(typename, length);
-		}
 	}
 
 }

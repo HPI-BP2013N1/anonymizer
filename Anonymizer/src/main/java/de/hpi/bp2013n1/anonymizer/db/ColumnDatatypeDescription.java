@@ -1,5 +1,10 @@
 package de.hpi.bp2013n1.anonymizer.db;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+
 /*
  * #%L
  * AnonymizerShared
@@ -42,6 +47,21 @@ public class ColumnDatatypeDescription {
 			return typename + "(" + length + ")";
 		default:
 			return typename;
+		}
+	}
+
+	public static ColumnDatatypeDescription fromMetaData(
+			TableField tableField, Connection connection) 
+					throws SQLException {
+		try (PreparedStatement selectColumnStatement = connection.prepareStatement(
+				"SELECT " + tableField.column 
+				+ " FROM " + tableField.schemaTable()
+				+ " WHERE 1 = 0")) {
+			ResultSetMetaData metadata = selectColumnStatement.getMetaData();
+			// TODO: consider using getColumnType with java.sql.Types
+			String typename = metadata.getColumnTypeName(1);
+			int length = metadata.getColumnDisplaySize(1);
+			return new ColumnDatatypeDescription(typename, length);
 		}
 	}
 }

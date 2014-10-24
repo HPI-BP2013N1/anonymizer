@@ -40,7 +40,6 @@ import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.db.ColumnDatatypeDescription;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
-import de.hpi.bp2013n1.anonymizer.shared.AnonymizerUtils;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.TableRuleMap;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyCreationException;
@@ -80,7 +79,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		ColumnDatatypeDescription originTableFieldDatatype;
 		try {
 			originTableFieldDatatype = 
-				AnonymizerUtils.getColumnDatatypeDescription(
+				ColumnDatatypeDescription.fromMetaData(
 						originTableField, 
 						originalDatabase);
 			if (!translationTableExists(originTableField)) {
