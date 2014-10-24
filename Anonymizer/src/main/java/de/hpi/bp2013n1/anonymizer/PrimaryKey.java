@@ -50,7 +50,8 @@ class PrimaryKey {
 		DatabaseMetaData metaData = database.getMetaData();
 		try (ResultSet pkResultSet = metaData.getPrimaryKeys(null, schema, table)) {
 			if (!pkResultSet.next()) {
-				// TODO: no primary key
+				useAllColumnsAsPrimaryKey(schema, table, database);
+				return;
 			}
 			keyName = pkResultSet.getString("PK_NAME");
 			TreeMap<Integer, String> columns = new TreeMap<>();
@@ -71,7 +72,23 @@ class PrimaryKey {
 			}
 		}
 	}
-	
+
+	private void useAllColumnsAsPrimaryKey(String schema, String table,
+			Connection database) throws SQLException {
+		try (PreparedStatement selectColumnStatement = database.prepareStatement(
+				"SELECT *  FROM " + schema + "." + table + " WHERE 1 = 0")) {
+			ResultSetMetaData metadata = selectColumnStatement.getMetaData();
+			int columnCount = metadata.getColumnCount();
+			columnNames = new ArrayList<>(columnCount);
+			columnTypeNames = new ArrayList<>(columnCount);
+			// TODO: consider using getColumnType with java.sql.Types
+			for (int i = 1; i <= columnCount; i++) {
+				columnNames.add(metadata.getColumnName(i));
+				columnTypeNames.add(metadata.getColumnTypeName(i));
+			}
+		}
+	}
+
 	public List<String> columnNames() {
 		return ImmutableList.copyOf(columnNames);
 	}
