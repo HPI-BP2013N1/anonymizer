@@ -131,8 +131,8 @@ public class CharacterStrategy extends TransformationStrategy {
 			newNumbers = numberCharacters().replaceAll(
 					patternBuilder.toString(), "").toCharArray();
 		} else {
-			newLowerCaseCharacters = lowerCaseCharacterArray();
-			newUpperCaseCharacters = upperCaseCharacterArray();
+			newLowerCaseCharacters = lowerCaseCharArray();
+			newUpperCaseCharacters = upperCaseCharArray();
 			newNumbers = numberArray();
 		}
 		
@@ -153,11 +153,14 @@ public class CharacterStrategy extends TransformationStrategy {
 			newPseudonymNumbers = numberCharacters().replaceAll(       
 			usedPseudonymsPattern.toString(), "").toCharArray();      
 		} else {
-			newLowerCasePseudonyms = lowerCaseCharacterArray();
-			newUpperCasePseudonyms = upperCaseCharacterArray();
+			newLowerCasePseudonyms = lowerCaseCharArray();
+			newUpperCasePseudonyms = upperCaseCharArray();
 			newPseudonymNumbers = numberArray();
 		}
 		
+		shuffleArrayInPlace(newLowerCasePseudonyms);
+		shuffleArrayInPlace(newUpperCasePseudonyms);
+		shuffleArrayInPlace(newPseudonymNumbers);
 		for (int i = 0; i < newLowerCasePseudonyms.length; i++)
 			newCharacterMapping.put(newLowerCaseCharacters[i],
 					newLowerCasePseudonyms[i]);

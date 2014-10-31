@@ -176,11 +176,11 @@ public abstract class TransformationStrategy {
 		return "ß";
 	}
 
-	protected char[] lowerCaseCharacterArray() {
+	protected char[] lowerCaseCharArray() {
 		return lowerCaseCharacters().toCharArray(); // + specialCharacters()
 	}
 
-	protected char[] upperCaseCharacterArray() {
+	protected char[] upperCaseCharArray() {
 		return lowerCaseCharacters().toUpperCase().toCharArray();
 	}
 
@@ -193,19 +193,22 @@ public abstract class TransformationStrategy {
 	}
 
 	/**
-	 * returns a shuffled copy of the given list
+	 * returns a shuffled copy of the given array
 	 * **/
+	public char[] shuffleArray(char[] array) {
+		char[] shuffledArray = array.clone();
+		shuffleArrayInPlace(shuffledArray);
+		return shuffledArray;
+	}
 
-	public char[] shuffleArray(char[] list) {
-		char[] shuffledList = list.clone();
+	public void shuffleArrayInPlace(char[] array) {
 		Random rgen = new Random();
-		for (int i = 0; i < shuffledList.length; i++) {
-			int randomPosition = rgen.nextInt(shuffledList.length);
-			Character temp = shuffledList[i];
-			shuffledList[i] = shuffledList[randomPosition];
-			shuffledList[randomPosition] = temp;
+		for (int i = 0; i < array.length; i++) {
+			int randomPosition = rgen.nextInt(array.length);
+			Character temp = array[i];
+			array[i] = array[randomPosition];
+			array[randomPosition] = temp;
 		}
-		return shuffledList;
 	}
 
 	public abstract void prepareTableTransformation(TableRuleMap tableRules) 
