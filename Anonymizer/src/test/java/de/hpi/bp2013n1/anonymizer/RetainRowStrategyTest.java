@@ -48,8 +48,8 @@ public class RetainRowStrategyTest {
 	@Before
 	public void setUpRetainStrategyAndRetainService()
 			throws ClassNotFoundException, IOException, SQLException {
-		testData = new TestDataFixture(
-				TestDataFixture.makeStubConfig(), null);
+		testData = new StandardTestDataFixture(
+				StandardTestDataFixture.makeStubConfig(), null);
 		Anonymizer anonymizerMock = mock(Anonymizer.class);
 		retainService = new RowRetainService(
 				testData.originalDbConnection,

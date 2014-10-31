@@ -47,8 +47,8 @@ public class DeleteRowStrategyTest {
 	@Before
 	public void setUpRetainStrategyAndRetainService()
 			throws ClassNotFoundException, IOException, SQLException {
-		testData = new TestDataFixture(
-				TestDataFixture.makeStubConfig(), null);
+		testData = new StandardTestDataFixture(
+				StandardTestDataFixture.makeStubConfig(), null);
 		sut = new DeleteRowStrategy(null, testData.originalDbConnection,
 				testData.transformationDbConnection);
 	}

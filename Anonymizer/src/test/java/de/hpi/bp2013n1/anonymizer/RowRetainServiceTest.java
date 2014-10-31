@@ -74,8 +74,8 @@ public class RowRetainServiceTest {
 	
 	@Test
 	public void testRetainCurrentRow() throws ClassNotFoundException, IOException, SQLException, InsertRetainMarkFailed {
-		Config config = TestDataFixture.makeStubConfig();
-		try (TestDataFixture stub = new TestDataFixture(config, null)) {
+		Config config = StandardTestDataFixture.makeStubConfig();
+		try (TestDataFixture stub = new StandardTestDataFixture(config, null)) {
 			sut = new RowRetainService(stub.originalDbConnection, 
 					stub.transformationDbConnection);
 			org.h2.tools.RunScript.execute(stub.originalDbConnection, 

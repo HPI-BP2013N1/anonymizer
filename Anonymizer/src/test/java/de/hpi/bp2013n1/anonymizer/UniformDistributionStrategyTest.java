@@ -60,9 +60,9 @@ public class UniformDistributionStrategyTest {
 
 	@Before
 	public void createSubjectUnderTest() throws Exception {
-		Config stubConfig = TestDataFixture.makeStubConfig();
+		Config stubConfig = StandardTestDataFixture.makeStubConfig();
 		Scope scope = new Scope();
-		testData = new TestDataFixture(stubConfig, scope);
+		testData = new StandardTestDataFixture(stubConfig, scope);
 		sut = new UniformDistributionStrategy(anonymizerMock,
 				testData.originalDbConnection,
 				testData.transformationDbConnection);

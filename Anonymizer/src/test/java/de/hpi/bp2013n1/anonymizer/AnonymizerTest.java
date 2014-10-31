@@ -109,7 +109,7 @@ public class AnonymizerTest {
 	
 	@Test
 	public void transformationsAsExpected() throws Exception {
-		try (TestDataFixture testData = new TestDataFixture(original,
+		try (TestDataFixture testData = new StandardTestDataFixture(original,
 				destination, transformations)) {
 			testData.populateDatabases();
 			testData.createAnonymizer().run();

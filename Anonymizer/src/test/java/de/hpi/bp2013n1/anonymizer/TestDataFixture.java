@@ -38,25 +38,46 @@ import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.operation.DatabaseOperation;
 import org.h2.tools.RunScript;
 
-import com.google.common.collect.Lists;
-
 import de.hpi.bp2013n1.anonymizer.shared.Config;
-import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 
-public class TestDataFixture implements AutoCloseable {
-	Connection originalDbConnection;
-	Connection transformationDbConnection;
-	Connection destinationDbConnection;
-	Config config;
-	Scope scope;
-	
-	public TestDataFixture() throws IOException, DependantWithoutRuleException, ClassNotFoundException, SQLException  {
-		readConfigAndScope();
-		createDbConnections();
+public abstract class TestDataFixture implements AutoCloseable {
+
+	private static void executeDdlScript(InputStream ddlStream,
+			Connection dbConnection) throws SQLException, IOException {
+		try (InputStreamReader ddlReader = new InputStreamReader(ddlStream)) {
+			RunScript.execute(dbConnection, ddlReader);
+		}
 	}
-	
+
+	private static void importData(Connection connection, String schemaName,
+			InputStream dataSetFileStream) throws DatabaseUnitException,
+			IOException, SQLException {
+		IDatabaseConnection db = new DatabaseConnection(connection, schemaName);
+		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
+		IDataSet data = dataSetBuilder.build(dataSetFileStream);
+		DatabaseOperation.CLEAN_INSERT.execute(db, data);
+	}
+
+	public static Config makeStubConfig() {
+		Config config = new Config();
+		config.originalDB.url = "jdbc:h2:mem:";
+		config.destinationDB.url = "jdbc:h2:mem:";
+		config.transformationDB.url = "jdbc:h2:mem:";
+		return config;
+	}
+
+	protected Connection originalDbConnection;
+	protected Connection transformationDbConnection;
+	protected Connection destinationDbConnection;
+	protected Config config;
+	protected Scope scope;
+
+	protected TestDataFixture() {
+	}
+
 	public TestDataFixture(Config config, Scope scope)
 			throws ClassNotFoundException, IOException, SQLException {
 		this.config = config;
@@ -64,50 +85,35 @@ public class TestDataFixture implements AutoCloseable {
 		createDbConnections();
 	}
 
-	public TestDataFixture(Connection originalDbConnection,
-			Connection destinationDbConnection,
-			Connection transformationDbConnection) throws IOException, DependantWithoutRuleException {
-		readConfigAndScope();
-		this.originalDbConnection = originalDbConnection;
-		this.destinationDbConnection = destinationDbConnection;
-		this.transformationDbConnection = transformationDbConnection;
-	}
-
-	private void readConfigAndScope() throws IOException, DependantWithoutRuleException {
-		config = new Config();
-		config.readFromURL(getConfigURL());
-		scope = new Scope();
-		scope.readFromURL(getScopeURL());
-	}
-
 	/**
 	 * Template method which provides the URL to a scope file resource.
+	 * 
 	 * @return
 	 */
-	protected URL getScopeURL() {
-		return AnonymizerCompleteTest.class.getResource("testscope.txt");
-	}
+	protected abstract URL getScopeURL();
 
 	/**
 	 * Template method which provides the URL to a config file resource.
+	 * 
 	 * @return
 	 */
-	protected URL getConfigURL() {
-		return TestDataFixture.class.getResource("test-h2-config.txt");
-	}
+	protected abstract URL getConfigURL();
 
-	private void createDbConnections() throws IOException,
+	protected void createDbConnections() throws IOException,
 			ClassNotFoundException, SQLException {
 		originalDbConnection = DatabaseConnector.connect(config.originalDB);
-		transformationDbConnection = DatabaseConnector.connect(config.transformationDB);
-		destinationDbConnection = DatabaseConnector.connect(config.destinationDB);
+		transformationDbConnection = DatabaseConnector
+				.connect(config.transformationDB);
+		destinationDbConnection = DatabaseConnector
+				.connect(config.destinationDB);
 	}
-	
-	public void populateDatabases() throws DatabaseUnitException, IOException, SQLException {
+
+	public void populateDatabases() throws DatabaseUnitException, IOException,
+			SQLException {
 		populateDatabases(config.schemaName);
 	}
 
-	public void populateDatabases(String schemaName) 
+	public void populateDatabases(String schemaName)
 			throws DatabaseUnitException, IOException, SQLException {
 		for (InputStream ddlStream : getDDLs()) {
 			executeDdlScript(ddlStream, originalDbConnection);
@@ -125,47 +131,43 @@ public class TestDataFixture implements AutoCloseable {
 			importData(originalDbConnection, schemaName, originalDataSet);
 		InputStream transformationDataSet = getTransformationDataSet();
 		if (transformationDataSet != null)
-			importData(transformationDbConnection, schemaName, transformationDataSet);
+			importData(transformationDbConnection, schemaName,
+					transformationDataSet);
 	}
 
 	/**
-	 * Template method for datasets that should be inserted into the original database.
+	 * Template method for datasets that should be inserted into the original
+	 * database.
+	 * 
 	 * @return
 	 */
-	protected InputStream getOriginalDataSet() {
-		return TestDataFixture.class.getResourceAsStream("testdata.xml");
-	}
+	protected abstract InputStream getOriginalDataSet();
 
 	/**
-	 * Template method for datasets that should be inserted into the 
+	 * Template method for datasets that should be inserted into the
 	 * transformation database.
+	 * 
 	 * @return
 	 */
-	protected InputStream getTransformationDataSet() {
-		return TestDataFixture.class.getResourceAsStream("testpseudonyms.xml");
-	}
+	protected abstract InputStream getTransformationDataSet();
 
 	/**
 	 * Template method for DDLs that should be applied to the original and
 	 * destination database.
+	 * 
 	 * @return
 	 */
-	protected Iterable<InputStream> getDDLs() {
-		return Lists.newArrayList(
-				TestDataFixture.class.getResourceAsStream("testschema.ddl.sql"));
-	}
+	protected abstract Iterable<InputStream> getDDLs();
 
 	/**
-	 * Template method for DDLs that should be applied to the 
-	 * transformation database.
+	 * Template method for DDLs that should be applied to the transformation
+	 * database.
+	 * 
 	 * @return
 	 */
-	protected Iterable<InputStream> getTransformationDDLs() {
-		return Lists.newArrayList(
-				TestDataFixture.class.getResourceAsStream("testpseudonymsschema.ddl.sql"));
-	}
-	
-	void setSchema() throws SQLException {
+	protected abstract Iterable<InputStream> getTransformationDDLs();
+
+	protected void setSchema() throws SQLException {
 		try (Statement s = originalDbConnection.createStatement()) {
 			s.execute("SET SCHEMA = " + config.schemaName);
 		}
@@ -180,42 +182,24 @@ public class TestDataFixture implements AutoCloseable {
 		// destinationDbConnection.setSchema(config.schemaName);
 	}
 
-	private static void executeDdlScript(InputStream ddlStream, 
-			Connection dbConnection) throws SQLException, IOException {
-		try (InputStreamReader ddlReader = new InputStreamReader(ddlStream)) {
-			RunScript.execute(dbConnection, ddlReader);
-		}
-	}
-
-	private static void importData(Connection connection, String schemaName,
-			InputStream dataSetFileStream) throws DatabaseUnitException, IOException,
-			SQLException {
-		IDatabaseConnection db = new DatabaseConnection(connection, schemaName);
-		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
-		IDataSet data = dataSetBuilder.build(dataSetFileStream);
-		DatabaseOperation.CLEAN_INSERT.execute(db, data);
-	}
-	
-	Anonymizer createAnonymizer() {
+	protected Anonymizer createAnonymizer() {
 		Anonymizer anonymizer = new Anonymizer(config, scope);
-		anonymizer.useDatabases(originalDbConnection, destinationDbConnection, 
+		anonymizer.useDatabases(originalDbConnection, destinationDbConnection,
 				transformationDbConnection);
 		return anonymizer;
 	}
-	
-	IDataSet expectedDestinationDataSet() throws DataSetException {
-		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
-		return dataSetBuilder.build(TestDataFixture.class
-				.getResourceAsStream("transformed-testdata.xml"));
-	}
-	
-	protected IDataSet actualDestinationDataSet() throws DatabaseUnitException, SQLException {
+
+	protected abstract IDataSet expectedDestinationDataSet()
+			throws DataSetException;
+
+	protected IDataSet actualDestinationDataSet() throws DatabaseUnitException,
+			SQLException {
 		IDatabaseConnection destination = new DatabaseConnection(
 				destinationDbConnection, config.schemaName);
 		return destination.createDataSet();
 	}
 
-	void closeConnections() throws SQLException {
+	protected void closeConnections() throws SQLException {
 		try {
 			originalDbConnection.close();
 		} finally {
@@ -239,11 +223,12 @@ public class TestDataFixture implements AutoCloseable {
 		org.dbunit.Assertion.assertEquals(expectedDataSet, actualDataSet);
 	}
 
-	public static Config makeStubConfig() {
-		Config config = new Config();
-		config.originalDB.url = "jdbc:h2:mem:";
-		config.destinationDB.url = "jdbc:h2:mem:";
-		config.transformationDB.url = "jdbc:h2:mem:";
-		return config;
+	protected void readConfigAndScope() throws IOException,
+			DependantWithoutRuleException {
+		config = new Config();
+		config.readFromURL(getConfigURL());
+		scope = new Scope();
+		scope.readFromURL(getScopeURL());
 	}
+
 }

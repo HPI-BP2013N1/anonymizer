@@ -36,7 +36,6 @@ import org.dbunit.database.DatabaseConnection;
 import org.dbunit.database.IDatabaseConnection;
 import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.ITable;
-import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -59,7 +58,7 @@ public class AnonymizerCompleteTest {
 
 	@BeforeClass
 	public static void anonymizeTestDbAndCreateConnections() throws Exception {
-		testData = new TestDataFixture();
+		testData = new StandardTestDataFixture();
 		testData.populateDatabases();
 		loadOldPseudonyms();
 		addNewRow();
