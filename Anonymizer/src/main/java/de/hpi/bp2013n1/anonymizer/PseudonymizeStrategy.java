@@ -36,6 +36,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.logging.Logger;
 
 import com.google.common.collect.Lists;
 
@@ -49,6 +50,7 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
 public class PseudonymizeStrategy extends TransformationStrategy {
 
+	static Logger logger = Logger.getLogger(PseudonymizeStrategy.class.getName());
 	static final int NUMBER_OF_AVAILABLE_CHARS = 2 * 26 + 10;
 	char[] shuffledCharPool = shuffledChars();
 	char[] shuffledNumbersPool = shuffledNumberArray();
@@ -362,19 +364,18 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			boolean nullAllowed) throws RuleValidationException {
 		// check for valid type
 		if (!isSupportedType(type)) {
-			// TODO: replace System.err.println with logging
-			System.err.println("ERROR: Pseudonymisation only supports CHAR, VARCHAR and INTEGER fields");
+			logger.severe("Pseudonymisation only supports CHAR, VARCHAR and INTEGER fields");
 			return false;
 		}
 
 		// check for prefix is valid
 		if (rule.additionalInfo.length() != 0) {
 			if (!SQLTypes.isCharacterType(type)) {
-				System.err.println("ERROR: Prefix only supported for CHARACTER and VARCHAR fields. Skipping");
+				logger.severe("Prefix only supported for CHARACTER and VARCHAR fields. Skipping");
 				return false;
 			}
 			if (rule.additionalInfo.length() > length) {						
-				System.err.println("ERROR: Provided default value is longer than maximum field length of " + length + ". Skipping");
+				logger.severe("Provided default value is longer than maximum field length of " + length + ". Skipping");
 				return false;
 			}
 
@@ -386,8 +387,11 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 				if (rule.additionalInfo.length() 
 						+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS)) 
 						> length) {
-					System.err.println("ERROR: Provided prefix is too long to pseudonymize. prefix: " + rule.additionalInfo.length() 
-							+ " required: " + Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS)) + " allowed: " + length + ". Skipping");
+					logger.severe("Provided prefix is too long to pseudonymize. "
+							+ "prefix: " + rule.additionalInfo.length() 
+							+ " required: " 
+							+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS)) 
+							+ " allowed: " + length + ". Skipping");
 					return false;
 				}
 			} catch (SQLException e) {
