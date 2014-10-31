@@ -28,15 +28,14 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.sql.Types;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
@@ -47,8 +46,7 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
 public class CharacterStrategy extends TransformationStrategy {
 
-	private static final String CHARACTER_MAPPING_TABLE = "STRINGKEYDICT";
-	private HashMap<Character, Character> characterMapping = new HashMap<Character, Character>();	
+	private Map<Rule, Map<Character, Character>> characterMappings = Maps.newHashMap();	
 	private String ignoredCharacters = "";
 	
 	private Logger characterLogger = Logger.getLogger(CharacterStrategy.class.getName());
@@ -56,6 +54,10 @@ public class CharacterStrategy extends TransformationStrategy {
 	public CharacterStrategy(Anonymizer anonymizer, Connection oldDB, 
 			Connection translateDB) throws SQLException {
 		super(anonymizer, oldDB, translateDB);
+	}
+	
+	private String characterMappingTableName(TableField originField) {
+		return originField.table + "_" + originField.column + "_CHARACTERS";
 	}
 
 	@Override
@@ -75,15 +77,14 @@ public class CharacterStrategy extends TransformationStrategy {
 		} catch (SQLException e) {
 			throw new TransformationTableCreationException(e.getMessage());
 		}
-		HashMap<Character, Character> newCharacterMapping;
+		Map<Character, Character> newCharacterMapping;
 		try {
-			newCharacterMapping = 
-					fillKeyLists(rule.tableField.schema);
+			newCharacterMapping = fillKeyLists(rule);
 		} catch (SQLException e) {
 			throw new FetchPseudonymsFailedException(e.getMessage());
 		}
 		try {
-			insertNewCharacterMapping(rule.tableField.schema, newCharacterMapping);
+			insertNewCharacterMapping(rule, newCharacterMapping);
 		} catch (SQLException e) {
 			throw new TransformationKeyCreationException(e.getMessage());
 		}
@@ -95,17 +96,17 @@ public class CharacterStrategy extends TransformationStrategy {
 			transformationDatabase.getMetaData().getTables(
 					null,
 					translatedField.schema,
-					CHARACTER_MAPPING_TABLE,
+					characterMappingTableName(translatedField),
 					new String[] { "TABLE" })) {
 			return tableResultSet.next(); // next returns true if a row is available
 		}
 	}
 
-	protected HashMap<Character, Character> fillKeyLists(String schemaName) 
+	protected Map<Character, Character> fillKeyLists(Rule rule) 
 			throws SQLException {
 		HashMap<Character, Character> newCharacterMapping = new HashMap<>();
 		
-		fetchCharacterMapping(schemaName);
+		Map<Character, Character> characterMapping = fetchCharacterMapping(rule);
 		char[] newLowerCaseCharacters;
 		char[] newUpperCaseCharacters;
 		char[] newNumbers;
@@ -166,7 +167,7 @@ public class CharacterStrategy extends TransformationStrategy {
 	protected void createPseudonymsTable(TableField tableField) 
 			throws TransformationTableCreationException {
 		String characterMappingSchemaTable = 
-				tableField.schema + "." + CHARACTER_MAPPING_TABLE;
+				tableField.schema + "." + characterMappingTableName(tableField);
 		try (Statement transformationStatement = transformationDatabase.createStatement()) {
 			transformationStatement.execute("CREATE TABLE " 
 					+ characterMappingSchemaTable 
@@ -186,12 +187,13 @@ public class CharacterStrategy extends TransformationStrategy {
 		}
 	}
 
-	private void insertNewCharacterMapping(String schemaName, 
-			HashMap<Character, Character> newCharacterMapping)
+	private void insertNewCharacterMapping(Rule rule, 
+			Map<Character, Character> newCharacterMapping)
 			throws SQLException {
 		try (PreparedStatement preparedTranslateStmt = 
 				transformationDatabase.prepareStatement(
-						"INSERT INTO " + schemaName + "." + CHARACTER_MAPPING_TABLE 
+						"INSERT INTO " + rule.tableField.schema + "." 
+						+ characterMappingTableName(rule.tableField) 
 						+ " VALUES (?,?)")) {
 			for (Map.Entry<Character, Character> pair : newCharacterMapping.entrySet()) {
 				preparedTranslateStmt.setString(1, String.valueOf(pair.getKey()));
@@ -202,19 +204,26 @@ public class CharacterStrategy extends TransformationStrategy {
 			transformationDatabase.commit();
 			preparedTranslateStmt.clearBatch();
 		}
-		characterMapping.putAll(newCharacterMapping);
+		characterMappings.get(rule).putAll(newCharacterMapping);
 	}
 
-	private void fetchCharacterMapping(String schemaName) throws SQLException {
+	private Map<Character, Character> fetchCharacterMapping(Rule rule) throws SQLException {
+		Map<Character, Character> characterMapping = characterMappings.get(rule);
+		if (characterMapping == null) {
+			characterMapping = Maps.newHashMap();
+			characterMappings.put(rule, characterMapping);
+		}
 		characterMapping.clear();
 		try (PreparedStatement selectStatement = transformationDatabase.prepareStatement(
-				"SELECT * FROM " + schemaName + "." + CHARACTER_MAPPING_TABLE);
+				"SELECT * FROM " + rule.tableField.schema + "." 
+						+ characterMappingTableName(rule.tableField));
 				ResultSet mappingResultSet = selectStatement.executeQuery()) {
 			while (mappingResultSet.next())
 				characterMapping.put(
 						mappingResultSet.getString(1).charAt(0), 
 						mappingResultSet.getString(2).charAt(0));
 		}
+		return characterMapping;
 	}
 	
 	public void setIgnoredCharacters(String toBeIgnored) {
@@ -231,11 +240,11 @@ public class CharacterStrategy extends TransformationStrategy {
 				getClass() + " should transform " + oldValue 
 				+ " but can only opeprate on Strings");
 		return Lists.newArrayList(
-				transform((String) oldValue, rule.tableField, 
+				transform((String) oldValue, rule, 
 						rule.additionalInfo.toCharArray()));
 	}
 
-	protected String transform(String oldValue, TableField tableField, 
+	protected String transform(String oldValue, Rule rule, 
 			char[] pattern) throws TransformationKeyNotFoundException {
 		StringBuilder newValue = new StringBuilder();		
 		if (oldValue == null)
@@ -249,7 +258,7 @@ public class CharacterStrategy extends TransformationStrategy {
 					break;
 				}
 					
-				Character newChar = characterMapping.get(oldValue.charAt(i));
+				Character newChar = characterMappings.get(rule).get(oldValue.charAt(i));
 				if (newChar == null)
 					throw new TransformationKeyNotFoundException(
 							"No new char found for char." + oldValue.charAt(i));
@@ -268,9 +277,8 @@ public class CharacterStrategy extends TransformationStrategy {
 			throws SQLException {
 		if (affectedColumnEntries.isEmpty())
 			return;
-		String aColumnName = affectedColumnEntries.getColumnNames().asList().get(0);
-		fetchCharacterMapping(affectedColumnEntries
-				.getRules(aColumnName).get(0).tableField.schema);
+		for (Rule rule : affectedColumnEntries.getRules())
+			fetchCharacterMapping(rule);
 	}
 
 	@Override
