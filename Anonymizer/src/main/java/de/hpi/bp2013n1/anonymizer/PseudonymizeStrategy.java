@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -48,10 +49,6 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
 public class PseudonymizeStrategy extends TransformationStrategy {
 
-	private static final String INTEGER = "INTEGER";
-	private static final String VARCHAR = "VARCHAR";
-	private static final String CHARACTER = "CHARACTER";
-	private static final String CHAR = "CHAR";
 	static final int NUMBER_OF_AVAILABLE_CHARS = 2 * 26 + 10;
 	char[] shuffledCharPool = shuffledChars();
 	char[] shuffledNumbersPool = shuffledNumberArray();
@@ -172,14 +169,20 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		ArrayList<String> randomValues = null;
 		int requiredLength = (int) Math.ceil((Math.log(numberOfDistinctValues) 
 				/ Math.log(NUMBER_OF_AVAILABLE_CHARS)));
-		switch (originTableFieldDatatype.typename) {
-		case CHARACTER:
-		case CHAR:
-		case VARCHAR:
+		switch (originTableFieldDatatype.type) {
+		case Types.CHAR:
+		case Types.VARCHAR:
+		case Types.NCHAR:
+		case Types.NVARCHAR:
+		case Types.LONGVARCHAR:
+		case Types.LONGNVARCHAR:
 			randomValues = createRandomPseudonyms(numberOfDistinctValues,
 					requiredLength, rule.additionalInfo);
 			break;
-		case INTEGER:
+		case Types.TINYINT:
+		case Types.SMALLINT:
+		case Types.INTEGER:
+		case Types.BIGINT:
 			randomValues = createIntegers(numberOfDistinctValues, originTableFieldDatatype.length);
 			break;
 		default:
@@ -350,23 +353,23 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		return result;
 	}
 
+	private boolean isSupportedType(int type) {
+		return SQLTypes.isCharacterType(type) || SQLTypes.isIntegerType(type);
+	}
+	
 	@Override
-	public boolean isRuleValid(Rule rule, String typename, int length,
+	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException {
 		// check for valid type
-		if (!(typename.equals("CHARACTER") 
-				|| typename.equals("CHAR")
-				|| typename.equals("VARCHAR") 
-				|| typename.equals("INTEGER"))) {
-			System.err.println("ERROR: Pseudonymisation only supports CHARACTER, VARCHAR and INTEGER fields");
+		if (!isSupportedType(type)) {
+			// TODO: replace System.err.println with logging
+			System.err.println("ERROR: Pseudonymisation only supports CHAR, VARCHAR and INTEGER fields");
 			return false;
 		}
 
 		// check for prefix is valid
 		if (rule.additionalInfo.length() != 0) {
-			if (!(typename.equals("CHARACTER")
-					|| typename.equals("CHAR")
-					|| typename.equals("VARCHAR"))) {
+			if (!SQLTypes.isCharacterType(type)) {
 				System.err.println("ERROR: Prefix only supported for CHARACTER and VARCHAR fields. Skipping");
 				return false;
 			}

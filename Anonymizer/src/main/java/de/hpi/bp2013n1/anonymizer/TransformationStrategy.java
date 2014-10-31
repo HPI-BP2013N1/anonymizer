@@ -215,6 +215,6 @@ public abstract class TransformationStrategy {
 		// no-op by default, subclasses may override this
 	}
 
-	public abstract boolean isRuleValid(Rule rule, String typename, int length,
+	public abstract boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException;
 }

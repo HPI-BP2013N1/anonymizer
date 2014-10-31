@@ -205,7 +205,7 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 	}
 
 	@Override
-	public boolean isRuleValid(Rule rule, String typename, int length,
+	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException {
 		// TODO: check SQL selection validity
 		return rule.dependants.isEmpty();

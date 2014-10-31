@@ -59,7 +59,7 @@ public class SetDefaultStrategy extends TransformationStrategy {
 	}
 
 	@Override
-	public boolean isRuleValid(Rule rule, String typename, int length,
+	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException {
 		// check for defaults given where null not allowed
 		if (!nullAllowed && rule.additionalInfo.equals("<NULL>")) {
@@ -69,8 +69,7 @@ public class SetDefaultStrategy extends TransformationStrategy {
 		}
 		
 		// check for default is valid
-		if ((typename.equals("VARCHAR") || typename.equals("CHAR") 
-				|| typename.equals("CHARACTER")) 
+		if (SQLTypes.isCharacterType(type) 
 				&& rule.additionalInfo.length() != 0 
 				&& rule.additionalInfo.length() > length) {
 			logger.severe("Provided default value is longer than maximum field "

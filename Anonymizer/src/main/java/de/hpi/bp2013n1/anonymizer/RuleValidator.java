@@ -22,7 +22,7 @@ public class RuleValidator {
 	}
 
 	public boolean isValid(Rule rule) {
-		String typename = "";
+		int type = 0;
 		int length = 0;
 		boolean nullAllowed = false;
 		if (rule.tableField.column != null) {
@@ -31,7 +31,7 @@ public class RuleValidator {
 					rule.tableField.table,
 					rule.tableField.column)) {
 				column.next();
-				typename = column.getString("TYPE_NAME");
+				type = column.getInt("DATA_TYPE");
 				length = column.getInt("COLUMN_SIZE");
 				nullAllowed = column.getInt("NULLABLE") == DatabaseMetaData.columnNullable;
 			} catch (SQLException e) {
@@ -44,7 +44,7 @@ public class RuleValidator {
 		boolean strategyIsValid = true;
 		try {
 			strategyIsValid = strategies.get(rule.strategy).isRuleValid(
-					rule, typename, length, nullAllowed);
+					rule, type, length, nullAllowed);
 		} catch (RuleValidationException e) {
 			logger.severe("Could not validate rule " + rule + ": " 
 					+ e.getMessage());

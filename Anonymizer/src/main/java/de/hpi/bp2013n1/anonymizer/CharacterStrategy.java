@@ -28,6 +28,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Types;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -273,13 +274,11 @@ public class CharacterStrategy extends TransformationStrategy {
 	}
 
 	@Override
-	public boolean isRuleValid(Rule rule, String typename, int length,
+	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) {
 		// check for valid type
-		if (!(typename.equals("CHARACTER")
-				|| typename.equals("CHAR")
-				|| typename.equals("VARCHAR"))) {
-			characterLogger.severe("CharacterStrategy only supports CHARACTER and VARCHAR fields");
+		if (!SQLTypes.isCharacterType(type)) {
+			characterLogger.severe("CharacterStrategy only supports CHAR and VARCHAR fields");
 			return false;
 		}
 		

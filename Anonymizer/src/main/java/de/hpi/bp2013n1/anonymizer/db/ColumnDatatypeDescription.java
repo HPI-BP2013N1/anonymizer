@@ -5,6 +5,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 
+import de.hpi.bp2013n1.anonymizer.SQLTypes;
+
 /*
  * #%L
  * AnonymizerShared
@@ -27,27 +29,18 @@ import java.sql.SQLException;
 
 
 public class ColumnDatatypeDescription {
-	public String typename;
+	public int type;
 	public int length;
 
-	public ColumnDatatypeDescription(String typename, int length) {
+	public ColumnDatatypeDescription(int typename, int length) {
 		super();
-		this.typename = typename;
+		this.type = typename;
 		this.length = length;
 	}
-
+	
 	@Override
 	public String toString() {
-		switch (typename) {
-		case "CHAR":
-			return (typename + "(" + length + ")");
-		case "CHARACTER":
-			return (typename + "(" + length + ")");
-		case "VARCHAR":
-			return typename + "(" + length + ")";
-		default:
-			return typename;
-		}
+		return SQLTypes.getTypeName(type) + "(" + length + ")";
 	}
 
 	public static ColumnDatatypeDescription fromMetaData(
@@ -59,7 +52,7 @@ public class ColumnDatatypeDescription {
 				+ " WHERE 1 = 0")) {
 			ResultSetMetaData metadata = selectColumnStatement.getMetaData();
 			// TODO: consider using getColumnType with java.sql.Types
-			String typename = metadata.getColumnTypeName(1);
+			int typename = metadata.getColumnType(1);
 			int length = metadata.getColumnDisplaySize(1);
 			return new ColumnDatatypeDescription(typename, length);
 		}

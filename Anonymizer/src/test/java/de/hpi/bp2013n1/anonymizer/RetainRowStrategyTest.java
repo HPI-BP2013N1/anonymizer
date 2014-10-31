@@ -125,13 +125,13 @@ public class RetainRowStrategyTest {
 		Rule rule = new Rule();
 		rule.tableField = new TableField("ATABLE", "PUBLIC");
 		rule.additionalInfo = "ACOLUMN = 0";
-		assertThat(sut.isRuleValid(rule, null, 0, false), is(true));
+		assertThat(sut.isRuleValid(rule, 0, 0, false), is(true));
 		rule.additionalInfo = "FOO = 'BAR'";
-		assertThat(sut.isRuleValid(rule, null, 0, false), is(false));
+		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
 		rule.additionalInfo = "= ? '123'";
-		assertThat(sut.isRuleValid(rule, null, 0, false), is(false));
+		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
 		rule.additionalInfo = "ACOLUMN = 0";
 		rule.tableField.table = "XYZ";
-		assertThat(sut.isRuleValid(rule, null, 0, false), is(false));		
+		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));		
 	}
 }
