@@ -29,6 +29,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -104,16 +105,22 @@ public class CharacterStrategy extends TransformationStrategy {
 
 	protected Map<Character, Character> fillKeyLists(Rule rule) 
 			throws SQLException {
-		HashMap<Character, Character> newCharacterMapping = new HashMap<>();
-		
 		Map<Character, Character> characterMapping = fetchCharacterMapping(rule);
+		Map<Character, Character> newCharacterMapping = fillCharacterMapping(
+				Collections.unmodifiableMap(characterMapping));
+		return newCharacterMapping;
+	}
+
+	public Map<Character, Character> fillCharacterMapping(
+			Map<Character, Character> existingMapping) {
+		HashMap<Character, Character> newCharacterMapping = new HashMap<>();
 		char[] newLowerCaseCharacters;
 		char[] newUpperCaseCharacters;
 		char[] newNumbers;
-		if (!characterMapping.isEmpty()) {
+		if (!existingMapping.isEmpty()) {
 			StringBuilder patternBuilder = new StringBuilder();
 			patternBuilder.append('[');
-			for (Character c : characterMapping.keySet()) {
+			for (Character c : existingMapping.keySet()) {
 				patternBuilder.append(c);
 			}
 			patternBuilder.append(']');
@@ -129,14 +136,13 @@ public class CharacterStrategy extends TransformationStrategy {
 			newNumbers = numberArray();
 		}
 		
-		// TODO: test if a new mapping is random
 		char[] newLowerCasePseudonyms;
 		char[] newUpperCasePseudonyms;
 		char[] newPseudonymNumbers;
-		if (!characterMapping.isEmpty()) {
+		if (!existingMapping.isEmpty()) {
 			StringBuilder usedPseudonymsPattern = new StringBuilder();
 			usedPseudonymsPattern.append('[');
-			for (Character c : characterMapping.values()) {
+			for (Character c : existingMapping.values()) {
 				usedPseudonymsPattern.append(c);
 			}
 			usedPseudonymsPattern.append(']');
@@ -160,7 +166,6 @@ public class CharacterStrategy extends TransformationStrategy {
 					newUpperCasePseudonyms[i]);
 		for (int i = 0; i < newNumbers.length; i++)
 			newCharacterMapping.put(newNumbers[i], newPseudonymNumbers[i]);
-		
 		return newCharacterMapping;
 	}
 
