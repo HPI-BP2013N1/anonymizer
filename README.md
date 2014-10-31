@@ -171,11 +171,11 @@ Starting per Command line
 ----------------------
 * Analyzer:
 
-        $ java -cp Analyzer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.analyzer.Main config_before.txt scope.txt config_afterwards.txt
+        $ java -cp Analyzer.jar:<jdbc driver> de.hpi.bp2013n1.anonymizer.analyzer.Main config_before.txt scope.txt config_afterwards.txt
 
 * Anonymizer:
 
-        $ java -cp Anonymizer.jar:<jdbc driver> de.hpi.bp20213n1.anonymizer.Anonymizer config_afterwards.txt scope.txt anonymizing.log
+        $ java -cp Anonymizer.jar:<jdbc driver> de.hpi.bp2013n1.anonymizer.Anonymizer config_afterwards.txt scope.txt anonymizing.log
 
 Replace &lt;jdbc driver&gt; with your driver, for example db2jcc4.jar for DB2.
 

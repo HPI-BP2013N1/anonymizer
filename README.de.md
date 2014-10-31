@@ -192,11 +192,11 @@ Start per Kommandozeile
 -----------------------
 * Analyzer:
 
-        $ java -cp Analyzer.jar:<jdbc-Treiuber> de.hpi.bp20213n1.anonymizer.analyzer.Main Konfiguration_vorher.txt scope.txt Konfiguration_hinterher.txt
+        $ java -cp Analyzer.jar:<jdbc-Treiuber> de.hpi.bp2013n1.anonymizer.analyzer.Main Konfiguration_vorher.txt scope.txt Konfiguration_hinterher.txt
 
 * Anonymizer:
 
-        $ java -cp Anonymizer.jar:<jdbc-Treiber> de.hpi.bp20213n1.anonymizer.Anonymizer Konfiguration_hinterher.txt scope.txt Protokolldatei.log
+        $ java -cp Anonymizer.jar:<jdbc-Treiber> de.hpi.bp2013n1.anonymizer.Anonymizer Konfiguration_hinterher.txt scope.txt Protokolldatei.log
 
 Ersetzen Sie &lt;jdbc-Treiber&gt; mit Ihrem Treiber, z. B. db2jcc4.jar für DB2.
 
