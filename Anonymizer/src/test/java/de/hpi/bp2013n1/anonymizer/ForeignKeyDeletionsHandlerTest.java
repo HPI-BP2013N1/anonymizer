@@ -43,8 +43,6 @@ import org.junit.Test;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 
-import de.hpi.bp2013n1.anonymizer.ForeignKeyDeletionsHandler.ForeignKey;
-
 public class ForeignKeyDeletionsHandlerTest {
 
 	private ForeignKeyDeletionsHandler sut;
@@ -62,9 +60,9 @@ public class ForeignKeyDeletionsHandlerTest {
 		table1PK.columnNames = Lists.newArrayList(parentColumnName);
 		String parentTable = "TABLE1";
 		sut.primaryKeys.put(parentTable, table1PK);
-		ForeignKey foreignKey = sut.new ForeignKey(parentTable, table1PK);
 		String referencingColumnName = "REF_A";
-		foreignKey.addForeignKeyColumn(parentColumnName, referencingColumnName);
+		ForeignKey foreignKey = ForeignKeyBuilder.withParent(parentTable, table1PK)
+				.referenceFrom(referencingColumnName).to(parentColumnName).build();
 		String dependentTable = "TABLE2";
 		sut.dependencies.put(dependentTable, foreignKey);
 		sut.tablesWithDependants.add(parentTable);
@@ -93,17 +91,17 @@ public class ForeignKeyDeletionsHandlerTest {
 	@Test
 	public void testComposedKeyDeletionInteraction() throws SQLException {
 		// prepare some relationships
-		PrimaryKey table1PK = new PrimaryKey();
 		String parentColumnName1 = "A";
 		String parentColumnName2 = "B";
-		table1PK.columnNames = Lists.newArrayList(parentColumnName1, parentColumnName2);
+		PrimaryKey table1PK = new PrimaryKey(parentColumnName1, parentColumnName2);
 		String parentTable = "TABLE1";
 		sut.primaryKeys.put(parentTable, table1PK);
-		ForeignKey foreignKey = sut.new ForeignKey(parentTable, table1PK);
 		String referencingColumnName1 = "REF_A";
 		String referencingColumnName2 = "REF_B";
-		foreignKey.addForeignKeyColumn(parentColumnName1, referencingColumnName1);
-		foreignKey.addForeignKeyColumn(parentColumnName2, referencingColumnName2);
+		ForeignKey foreignKey = ForeignKeyBuilder.withParent(parentTable, table1PK)
+				.referenceFrom(referencingColumnName1).to(parentColumnName1)
+				.referenceFrom(referencingColumnName2).to(parentColumnName2)
+				.build();
 		String dependentTable = "TABLE2";
 		sut.dependencies.put(dependentTable, foreignKey);
 		sut.tablesWithDependants.add(parentTable);

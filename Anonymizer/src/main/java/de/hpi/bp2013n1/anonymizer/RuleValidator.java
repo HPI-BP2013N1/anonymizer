@@ -50,10 +50,7 @@ public class RuleValidator {
 					+ e.getMessage());
 			return false;
 		}
-		if (!strategyIsValid) {
-			return false;
-		}
-		return true;
+		return strategyIsValid;
 	}
 
 }

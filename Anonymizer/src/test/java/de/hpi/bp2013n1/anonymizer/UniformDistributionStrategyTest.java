@@ -75,7 +75,6 @@ public class UniformDistributionStrategyTest {
 
 	@Test
 	public void testSetUpTransformation() throws PreparationFailedExection {
-		// TODO: implement
 	}
 	
 	@Test
@@ -301,12 +300,6 @@ public class UniformDistributionStrategyTest {
 		}
 	}
 
-	
-	@Test
-	public void testIsRuleValid() {
-		// TODO: implement
-	}
-	
 	@Test
 	public void testAdditionalInfoParsing() {
 		AdditionalInfo info;

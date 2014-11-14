@@ -25,17 +25,17 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeMap;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -43,37 +43,13 @@ import de.hpi.bp2013n1.anonymizer.shared.Rule;
 
 public class ForeignKeyDeletionsHandler {
 	
-	class ForeignKey {
-		String parentTable;
-		PrimaryKey parentPrimaryKey;
-		// keys = parent table column names, values = referencing column names
-		Map<String, String> foreignKeyColumns = new TreeMap<>();
-		
-		public ForeignKey(String parentTable, PrimaryKey parentPrimaryKey) {
-			this.parentTable = parentTable;
-			this.parentPrimaryKey = parentPrimaryKey;
-		}
-		
-		public void addForeignKeyColumn(String parentColumnName, String referencingColumnName) {
-			foreignKeyColumns.put(parentColumnName, referencingColumnName);
-		}
-
-		public Map<String, Object> referencedValues(ResultSetRowReader row)
-				throws SQLException {
-			Map<String, Object> comparisons = new TreeMap<>();
-			for (Map.Entry<String, String> fkColumn : foreignKeyColumns.entrySet()) {
-				if (!parentPrimaryKey.columnNames.contains(fkColumn.getKey()))
-					continue; // not a primary key column, so irrelevant for existence check
-				comparisons.put(fkColumn.getKey(), row.getObject(fkColumn.getValue()));
-			}
-			return comparisons;
-		}
-	}
-	
-	Map<String, PrimaryKey> primaryKeys = new HashMap<>(); // table -> PK
-	Multimap<String, ForeignKey> dependencies = ArrayListMultimap.create(); // child table -> FKs
+	/** table --> PK */
+	Map<String, PrimaryKey> primaryKeys  = new HashMap<>();
+	/** child table --> FKs */
+	Multimap<String, ForeignKey> dependencies = ArrayListMultimap.create();
 	Set<String> tablesWithDependants = new HashSet<>();
-	Multimap<String, Map<String, Object>> deletedRows = HashMultimap.create(); // table -> deleted PK values
+	/** table --> deleted PK tuples */
+	Multimap<String, Map<String, Object>> deletedRows = HashMultimap.create();
 	private Connection database;
 	
 	public void determineForeignKeysAmongTables(Connection database,
@@ -81,6 +57,7 @@ public class ForeignKeyDeletionsHandler {
 		this.database = database;
 		DatabaseMetaData metaData = database.getMetaData();
 		for (String table : tables) {
+			primaryKeys.put(table, getPrimaryKey(database, schema, table));
 			try (ResultSet importedKeys = metaData.getImportedKeys(
 					database.getCatalog(), schema, table)) {
 				String lastFK = null;
@@ -122,8 +99,11 @@ public class ForeignKeyDeletionsHandler {
 		if (!tablesWithDependants.contains(table))
 			return;
 		PrimaryKey pk = getPrimaryKey(database, deletedRow.getCurrentSchema(), table);
+		// if memory is still a problem, save rows in a local h2 database backed by a file with a large cache depending on the heap size
 		deletedRows.put(table, pk.keyValues(deletedRow));
-		// TODO: if memory is still a problem, save rows in a local h2 database backed by a file with a large cache depending on the heap size
+		// how to detect if the parent row is gone if not the full PK is referenced?
+		// if the delete strategy was used with a column to which a relation exists, 
+		// deleting the dependent tuple would be desirable
 	}
 	
 	public boolean hasParentRowBeenDeleted(ResultSetRowReader row) throws SQLException {
@@ -140,6 +120,9 @@ public class ForeignKeyDeletionsHandler {
 		for (Rule rule : rules) {
 			addForeignKeyForRuleDependents(rule);
 		}
+		Multimap<String, ForeignKey> composedForeignKeys = 
+				new ComposedForeignKeyDetector(dependencies, primaryKeys).composeForeignKeys();
+		dependencies.putAll(composedForeignKeys);
 	}
 
 	private void addForeignKeyForRuleDependents(Rule rule) {

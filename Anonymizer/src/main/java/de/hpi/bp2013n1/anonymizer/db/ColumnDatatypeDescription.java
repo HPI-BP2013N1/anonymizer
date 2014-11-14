@@ -51,7 +51,6 @@ public class ColumnDatatypeDescription {
 				+ " FROM " + tableField.schemaTable()
 				+ " WHERE 1 = 0")) {
 			ResultSetMetaData metadata = selectColumnStatement.getMetaData();
-			// TODO: consider using getColumnType with java.sql.Types
 			int typename = metadata.getColumnType(1);
 			int length = metadata.getColumnDisplaySize(1);
 			return new ColumnDatatypeDescription(typename, length);
