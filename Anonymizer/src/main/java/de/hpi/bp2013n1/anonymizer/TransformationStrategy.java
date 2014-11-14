@@ -181,7 +181,7 @@ public abstract class TransformationStrategy {
 	}
 
 	protected char[] upperCaseCharArray() {
-		return lowerCaseCharacters().toUpperCase().toCharArray();
+		return upperCaseCharacters().toCharArray();
 	}
 
 	protected char[] numberArray() {
