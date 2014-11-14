@@ -53,6 +53,7 @@ public class SafeStringSplitterTest {
 				{ "foo \";'\"; 'bar'", Lists.newArrayList("foo \";'\"", " 'bar'") },
 				{ "foo ';\"'; \"bar\"", Lists.newArrayList("foo ';\"'", " \"bar\"") },
 				{ "CONTAINS(..., ';'); MIN 10", Lists.newArrayList("CONTAINS(..., ';')", " MIN 10") },
+				{ "'a;b';c", Lists.newArrayList("'a;b'", "c") },
 		});
 	}
 	

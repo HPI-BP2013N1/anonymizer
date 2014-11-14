@@ -28,6 +28,14 @@ import com.google.common.collect.Lists;
 
 public abstract class SafeStringSplitter {
 
+	/**
+	 * Splits a string at each occurrence of a split character but not within
+	 * quotes. Example: SafeStringSplitter.splitSafely("'a.b'.c'", '.') 
+	 * returns a List ["'a.b'", "c"].
+	 * @param input
+	 * @param splitChar
+	 * @return
+	 */
 	public static List<String> splitSafely(String input, char splitChar) {
 		List<String> splitParts = Lists.newArrayList(input.split(
 				Character.toString(splitChar)));
