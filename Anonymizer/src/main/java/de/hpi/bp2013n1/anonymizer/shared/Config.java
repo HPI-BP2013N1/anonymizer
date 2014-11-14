@@ -194,7 +194,7 @@ public class Config {
 				for (int k = 0; k < other.dependants.size();) {
 					TableField otherDependent = other.dependants.get(k);
 					if (rule.tableField.equals(otherDependent)) {
-						if (rule.strategy == other.strategy) {
+						if (rule.strategy.equals(other.strategy)) {
 							configLogger.warning(rule.tableField + " is rule, "
 									+ "but same-type dependent of " + other.tableField);
 							remove = true;							
@@ -212,7 +212,7 @@ public class Config {
 			
 			
 			if (remove) {
-				configLogger.info("Removing rule.");
+				configLogger.info("Removing rule " + rule);
 				rules.remove(i);
 				continue;
 			}
