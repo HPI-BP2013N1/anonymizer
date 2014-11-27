@@ -22,12 +22,14 @@ package de.hpi.bp2013n1.anonymizer.shared;
 
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -40,6 +42,8 @@ import java.util.regex.Pattern;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class Config {
+	private static final Charset CONFIG_CHARSET = StandardCharsets.UTF_8;
+
 	public static class DependantWithoutRuleException extends Exception {
 		public DependantWithoutRuleException() {
 			super();
@@ -72,10 +76,9 @@ public class Config {
 		return config;
 	}
 	
-	public void readFromFile(String filename) throws DependantWithoutRuleException, IOException {		
-		File file = new File(filename);
-		FileReader fr = new FileReader(file);
-		try (BufferedReader reader = new BufferedReader(fr)) {
+	public void readFromFile(String filename) throws DependantWithoutRuleException, IOException {
+		try (BufferedReader reader = Files.newBufferedReader(
+				FileSystems.getDefault().getPath(filename), CONFIG_CHARSET)) {
 			read(reader);
 		}
 	}
@@ -193,7 +196,7 @@ public class Config {
 			// rule must not be dependent
 			// TODO: this effectively forbids composed rules A <- B <- C, change it (INNO-151)?
 			for (Rule other : rules) {
-				Iterator<TableField> otherDependantsIterator = 
+				Iterator<TableField> otherDependantsIterator =
 						other.dependants.iterator();
 				while (otherDependantsIterator.hasNext()) {
 					TableField otherDependent = otherDependantsIterator.next();
@@ -201,7 +204,7 @@ public class Config {
 						if (rule.strategy.equals(other.strategy)) {
 							configLogger.warning(rule.tableField + " is rule, "
 									+ "but same-type dependent of " + other.tableField);
-							remove = true;							
+							remove = true;
 						} else {
 							configLogger.warning(rule.tableField + " is rule, "
 									+ "but conflicting dependent of " + other.tableField);
@@ -223,6 +226,6 @@ public class Config {
 			i++;
 		}
 		
-		return !critical;		
+		return !critical;
 	}
 }

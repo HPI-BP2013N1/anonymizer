@@ -22,15 +22,18 @@ package de.hpi.bp2013n1.anonymizer.shared;
 
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
 import java.util.ArrayList;
 
 public class Scope {
+	private static final Charset SCOPE_CHARSET = StandardCharsets.UTF_8;
 	public ArrayList<String> tables;
 
 	public static Scope fromFile(String fileName) throws IOException {
@@ -40,11 +43,10 @@ public class Scope {
 	}
 	
 	public void readFromFile(String filename) throws IOException{
-		File file = new File(filename);
-		FileReader fr = new FileReader(file);
-		BufferedReader reader = new BufferedReader(fr);
-		read(reader);
-		reader.close();
+		try (BufferedReader reader = Files.newBufferedReader(
+				FileSystems.getDefault().getPath(filename), SCOPE_CHARSET)) {
+			read(reader);
+		}
 	}
 	
 	public void readFromURL(URL url) throws IOException {
@@ -70,7 +72,7 @@ public class Scope {
 	
 	public ArrayList<TableRuleMap> createAllTableRuleMaps() {
 		ArrayList<TableRuleMap> allTableRuleMaps = new ArrayList<TableRuleMap>();
-		for (String tableName : tables) 
+		for (String tableName : tables)
 			allTableRuleMaps.add(new TableRuleMap(tableName));
 		return allTableRuleMaps;
 	}
