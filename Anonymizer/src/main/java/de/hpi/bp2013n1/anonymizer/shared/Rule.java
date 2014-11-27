@@ -22,6 +22,7 @@ package de.hpi.bp2013n1.anonymizer.shared;
 
 
 import java.util.ArrayList;
+import java.util.List;
 
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
@@ -32,8 +33,8 @@ public class Rule {
 	 */
 	public TableField tableField;
 	public String strategy;
-	public ArrayList<TableField> dependants = new ArrayList<TableField>();
-	public ArrayList<TableField> potentialDependants = new ArrayList<TableField>();
+	public List<TableField> dependants = new ArrayList<TableField>();
+	public List<TableField> potentialDependants = new ArrayList<TableField>();
 	public String additionalInfo = "";
 
 	public Rule() {
@@ -46,7 +47,7 @@ public class Rule {
 	}
 	
 	public Rule(TableField tableField, String strategy, String additionalInfo,
-			ArrayList<TableField> dependants) {
+			List<TableField> dependants) {
 		this.tableField = tableField;
 		this.strategy = strategy;
 		this.dependants = dependants;
@@ -59,10 +60,10 @@ public class Rule {
 	public String getStrategy() {
 		return strategy;
 	}
-	public ArrayList<TableField> getDependants() {
+	public List<TableField> getDependants() {
 		return dependants;
 	}
-	public ArrayList<TableField> getPotentialDependants() {
+	public List<TableField> getPotentialDependants() {
 		return potentialDependants;
 	}
 	public String getAdditionalInfo() {
