@@ -108,7 +108,7 @@ public class Analyzer {
 			}
 			
 			System.out.println("done");
-			logger.fine("Finished writing config file at " 
+			logger.fine("Finished writing config file at "
 					+ Calendar.getInstance().getTime());
 			
 		} catch (SQLException e) {
@@ -172,7 +172,7 @@ public class Analyzer {
 				for (Rule rule : rulesForTable) {
 					rulesByColumn.put(rule.tableField.column, rule);
 				}
-				try (ResultSet primaryKeyResultSet = 
+				try (ResultSet primaryKeyResultSet =
 						metaData.getPrimaryKeys(null, config.schemaName, tableName)) {
 					while (primaryKeyResultSet.next()) {
 						String columnName = primaryKeyResultSet.getString("COLUMN_NAME");
@@ -294,7 +294,7 @@ public class Analyzer {
 		Iterator<TableField> dependantIterator = rule.dependants.iterator();
 		while (dependantIterator.hasNext()) {
 			TableField dependant = dependantIterator.next();
-			ResultSet columns = metaData.getColumns(null, 
+			ResultSet columns = metaData.getColumns(null,
 					dependant.schema,
 					dependant.table,
 					dependant.column);
@@ -317,11 +317,11 @@ public class Analyzer {
 		} catch (ClassNotFoundException | NoSuchMethodException
 				| SecurityException | InstantiationException
 				| IllegalAccessException | IllegalArgumentException e) {
-			logger.severe("Could not load or instanciate strategy: " 
+			logger.severe("Could not load or instanciate strategy: "
 				+ e.getMessage());
 			throw new FatalError(e);
 		} catch (InvocationTargetException e) {
-			logger.severe("Could not load or instanciate strategy: " 
+			logger.severe("Could not load or instanciate strategy: "
 					+ e.getCause().getMessage());
 			throw new FatalError(e);
 		}
@@ -342,7 +342,7 @@ public class Analyzer {
 							connection, null));
 		}
 		strategies.put(NO_OP_STRATEGY_KEY, TransformationStrategy.loadAndCreate(
-				NoOperationStrategy.class.getName(), 
+				NoOperationStrategy.class.getName(),
 				stubAnonymizer, connection, null));
 		return strategies;
 	}

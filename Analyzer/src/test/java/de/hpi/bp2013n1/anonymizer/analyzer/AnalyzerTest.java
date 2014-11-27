@@ -171,13 +171,13 @@ public class AnalyzerTest {
 				usesStrategy(is("S"), is("XYZKPPPP")))));
 		assertThat(newConfig.rules, hasItem(
 				appliesStrategyTo(
-						equalTo(new TableField("VISITOR.SURNAME", config.schemaName)), 
-						is("P"), 
+						equalTo(new TableField("VISITOR.SURNAME", config.schemaName)),
+						is("P"),
 						isEmptyString())));
 		assertThat(newConfig.rules, hasItem(
 				appliesStrategyTo(
-						equalTo(new TableField("VISITOR.ADDRESS", config.schemaName)), 
-						is("D"), 
+						equalTo(new TableField("VISITOR.ADDRESS", config.schemaName)),
+						is("D"),
 						isEmptyString())));
 	}
 	
@@ -189,17 +189,17 @@ public class AnalyzerTest {
 				new TableField("doesnot.exist", config.schemaName));
 		validatedRule.dependants.add(
 				new TableField("doesnot.existeither", config.schemaName));
-		TableField firstValidDependant = 
+		TableField firstValidDependant =
 				new TableField("VISIT.VISITORSURNAME", config.schemaName);
 		validatedRule.dependants.add(firstValidDependant);
 		validatedRule.dependants.add(
 				new TableField("another.fool", config.schemaName));
-		TableField secondValidDependant = 
+		TableField secondValidDependant =
 				new TableField("VISITOR.NAME", config.schemaName);
 		validatedRule.dependants.add(secondValidDependant); // not useful but valid
-		sut.validateExistingDependants(validatedRule, 
+		sut.validateExistingDependants(validatedRule,
 				originalDbConnection.getMetaData());
-		assertThat(validatedRule.dependants, 
+		assertThat(validatedRule.dependants,
 				contains(firstValidDependant, secondValidDependant));
 	}
 	
@@ -218,13 +218,13 @@ public class AnalyzerTest {
 		TableField dependentField = tableField("VISIT.VISITORNAME");
 		assertThat(plainRule.dependants, contains(dependentField));
 		config.rules.remove(plainRule);
-		Rule fullRule = new Rule(originField, "P", "", 
+		Rule fullRule = new Rule(originField, "P", "",
 				Lists.newArrayList(dependentField));
 		config.rules.add(fullRule);
 		sut.initializeRulesByTableField();
 		sut.findDependantsByForeignKeys(metaData);
 		assertThat(fullRule.dependants, contains(dependentField));
-		// TODO: test higher-order (transitive) foreign key dependencies 
+		// TODO: test higher-order (transitive) foreign key dependencies
 		// i.e. A -> B -> C implies A -> C
 	}
 	
@@ -248,7 +248,7 @@ public class AnalyzerTest {
 		assertThat(plainRule.potentialDependants,
 				containsInAnyOrder(matchingFields.toArray()));
 		
-		Rule fullRule = new Rule(originField, "P", "", 
+		Rule fullRule = new Rule(originField, "P", "",
 				Lists.newArrayList(dependentField));
 		sut.findPossibleDependantsByName(fullRule, metaData);
 		assertThat(fullRule.potentialDependants,
