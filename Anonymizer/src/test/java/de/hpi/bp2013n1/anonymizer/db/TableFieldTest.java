@@ -45,5 +45,18 @@ public class TableFieldTest {
 		TableField sut = new TableField("table.column", "schema");
 		assertThat(sut.schemaTable(), is("schema.table"));
 	}
-
+	
+	@Test
+	public void testStringOnlyConstructor() {
+		TableField sut = new TableField("A.B.C");
+		assertThat(sut.schema, is("A"));
+		assertThat(sut.table, is("B"));
+		assertThat(sut.column, is("C"));
+		sut = new TableField("A.B");
+		assertThat(sut.table, is("A"));
+		assertThat(sut.column, is("B"));
+		sut = new TableField("A");
+		assertThat(sut.table, is("A"));
+		assertThat(sut.column, is(nullValue()));
+	}
 }

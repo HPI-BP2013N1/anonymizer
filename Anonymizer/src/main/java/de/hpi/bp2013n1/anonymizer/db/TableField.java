@@ -20,17 +20,33 @@ package de.hpi.bp2013n1.anonymizer.db;
  * #L%
  */
 
+import static com.google.common.base.Preconditions.*;
+
 
 public class TableField {
 	public String table;
 	public String column;
 	public String schema;
 
-	public TableField(String str){
+	public TableField(String str) {
+		checkArgument(str != null && !str.equals(""));
 		String[] split = str.split("\\.");
-		table = split[0];
-		if (split.length > 1)
+		checkArgument(split.length <= 3, "TableField constructor argument "
+				+ "must be splittable in at most three pieces at periods (.)");
+		switch (split.length) {
+		case 1:
+			table = split[0];
+			break;
+		case 2:
+			table = split[0];
 			column = split[1];
+			break;
+		case 3:
+			schema = split[0];
+			table = split[1];
+			column = split[2];
+			break;
+		}
 	}
 	
 	public TableField(String str, String schemaName){

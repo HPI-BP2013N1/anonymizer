@@ -72,8 +72,29 @@ public abstract class TestDataFixture implements AutoCloseable {
 	protected Connection originalDbConnection;
 	protected Connection transformationDbConnection;
 	protected Connection destinationDbConnection;
+	
+	public Connection getOriginalDbConnection() {
+		return originalDbConnection;
+	}
+
+	public Connection getTransformationDbConnection() {
+		return transformationDbConnection;
+	}
+
+	public Connection getDestinationDbConnection() {
+		return destinationDbConnection;
+	}
+
 	protected Config config;
 	protected Scope scope;
+
+	public Config getConfig() {
+		return config;
+	}
+
+	public Scope getScope() {
+		return scope;
+	}
 
 	protected TestDataFixture() {
 	}

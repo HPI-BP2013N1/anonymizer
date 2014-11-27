@@ -1,0 +1,11 @@
+# originalDB newDB transformationDB each with username password
+jdbc:h2:mem: - -
+jdbc:h2:mem: - -
+jdbc:h2:mem: - -
+# schema name and batch size
+PUBLIC 10000
+
+- Pseudonymize: de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy
+
+# Table.Field		Type		AdditionalInfo
+TABLE1.E      Pseudonymize

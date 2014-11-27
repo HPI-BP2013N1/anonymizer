@@ -30,6 +30,8 @@ import java.io.InputStreamReader;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.regex.Matcher;
@@ -54,7 +56,7 @@ public class Config {
 		public String user;
 		public String password;
 	}
-	public ArrayList<Rule> rules = new ArrayList<Rule>();
+	public List<Rule> rules = new ArrayList<Rule>();
 	public ConnectionParameters originalDB = new ConnectionParameters();
 	public ConnectionParameters destinationDB = new ConnectionParameters();
 	public ConnectionParameters transformationDB = new ConnectionParameters();
@@ -129,7 +131,7 @@ public class Config {
 
 		Rule newRule = new Rule();
 		newRule.tableField = new TableField(split[0], schemaName);
-		newRule.strategy = split[1];
+		newRule.strategy = split.length > 1 ? split[1] : "";
 		
 		newRule.additionalInfo = "";
 		if(split.length > 2)
@@ -189,10 +191,12 @@ public class Config {
 			boolean remove = false;
 			
 			// rule must not be dependent
-			for (int j = 0; j < rules.size(); j++) {
-				Rule other = rules.get(j);
-				for (int k = 0; k < other.dependants.size();) {
-					TableField otherDependent = other.dependants.get(k);
+			// TODO: this effectively forbids composed rules A <- B <- C, change it (INNO-151)?
+			for (Rule other : rules) {
+				Iterator<TableField> otherDependantsIterator = 
+						other.dependants.iterator();
+				while (otherDependantsIterator.hasNext()) {
+					TableField otherDependent = otherDependantsIterator.next();
 					if (rule.tableField.equals(otherDependent)) {
 						if (rule.strategy.equals(other.strategy)) {
 							configLogger.warning(rule.tableField + " is rule, "
@@ -202,11 +206,10 @@ public class Config {
 							configLogger.warning(rule.tableField + " is rule, "
 									+ "but conflicting dependent of " + other.tableField);
 							configLogger.info("Removing dependent entry from " + other.tableField + ".");
-							other.dependants.remove(k);
+							otherDependantsIterator.remove();
 							continue;
 						}
 					}
-					k++;
 				}
 			}
 			
@@ -216,25 +219,6 @@ public class Config {
 				rules.remove(i);
 				continue;
 			}
-			
-			// every dependent must occur only once
-			for (int j = 0; j < rules.size(); j++) {
-				Rule other = rules.get(j);
-				if(i > j){
-					for (int k = 0; k < rule.dependants.size();) {
-						TableField myDependant = rule.dependants.get(k);
-						for (int l = 0; l < other.dependants.size(); l++) {
-							TableField otherDependant = other.dependants.get(l);
-							if(otherDependant.equals(myDependant)){
-								configLogger.severe(myDependant + " is dependent of " 
-										+ rule.tableField + " and " + other.tableField);
-								critical = true;
-							}							
-						}
-						k++;
-					}
-				}
-			}				
 					
 			i++;
 		}

@@ -31,15 +31,19 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayDeque;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Queue;
 import java.util.logging.Logger;
 
+import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Multimap;
+
 import de.hpi.bp2013n1.anonymizer.Anonymizer;
+import de.hpi.bp2013n1.anonymizer.NoOperationStrategy;
 import de.hpi.bp2013n1.anonymizer.RuleValidator;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -48,6 +52,7 @@ import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
 
 public class Analyzer {
+	static final String NO_OP_STRATEGY_KEY = "";
 	public Connection connection;
 	public Config config;
 	public Scope scope;
@@ -77,6 +82,7 @@ public class Analyzer {
 	static Logger logger = Logger.getLogger(Analyzer.class.getName());
 	private Map<String, TransformationStrategy> strategies;
 	private RuleValidator ruleValidator;
+	private Map<TableField, Rule> rulesByTableField;
 	
 	public Analyzer(Connection con, Config config, Scope scope){
 		this.connection = con;
@@ -88,28 +94,14 @@ public class Analyzer {
 	
 	public void run(String outputFilename) throws FatalError {
 		logger.fine("Starting analysis at " + Calendar.getInstance().getTime());
-		strategies = loadAndInstanciateStrategies();
+		setUpTransformationStrategies();
 		// read meta tables and find dependents
 		try {
 			System.out.println("> Processing Rules");
-			Iterator<Rule> ruleIterator = config.rules.iterator();
-			DatabaseMetaData metaData = connection.getMetaData();
-			ruleValidator = new RuleValidator(strategies, metaData);
-			while (ruleIterator.hasNext()) {
-				Rule rule = ruleIterator.next();
-				System.out.println("  Rule: " + rule.tableField);
-				if (!ruleValidator.isValid(rule)) {
-					ruleIterator.remove();
-					logger.warning("Skipping rule " + rule);
-					continue;
-				}
-				validateExistingDependants(rule, metaData);
-				findDependantsByForeignKeys(rule, metaData);
-				findPossibleDependantsByName(rule, metaData);
-			}
+			validateRulesAndAddDependants();
 			
 			System.out.println("> Validating");
-			if (config.validate()) {
+			if (validateConfig()) {
 				System.out.println("> Writing output file");
 				// write to intermediary config file
 				writeNewConfigToFile(outputFilename);
@@ -129,10 +121,97 @@ public class Analyzer {
 	}
 
 
+	void setUpTransformationStrategies() throws FatalError {
+		strategies = loadAndInstanciateStrategies();
+	}
 
+	
+	void validateRulesAndAddDependants() throws SQLException {
+		DatabaseMetaData metaData = connection.getMetaData();
+		addRulesForPrimaryKeyColumns(metaData);
+		initializeRulesByTableField();
+		findDependantsByForeignKeys(metaData);
+		Iterator<Rule> ruleIterator = config.rules.iterator();
+		ruleValidator = new RuleValidator(strategies, metaData);
+		while (ruleIterator.hasNext()) {
+			Rule rule = ruleIterator.next();
+			System.out.println("  Processing: " + rule.tableField);
+			if (!ruleValidator.isValid(rule)) {
+				ruleIterator.remove();
+				logger.warning("Skipping rule " + rule);
+				continue;
+			}
+			validateExistingDependants(rule, metaData);
+			findPossibleDependantsByName(rule, metaData);
+		}
+		removeNoOpRulesWithoutDependants();
+	}
+
+
+
+	void initializeRulesByTableField() {
+		rulesByTableField = Maps.newHashMap();
+		for (Rule rule : config.rules) {
+			rulesByTableField.put(rule.tableField, rule);
+		}
+	}
+
+
+
+	void addRulesForPrimaryKeyColumns(DatabaseMetaData metaData) throws SQLException {
+		Multimap<String, Rule> rulesByParentTable = HashMultimap.create();
+		for (Rule rule : config.rules) {
+			rulesByParentTable.put(rule.tableField.table, rule);
+		}
+		try (ResultSet tablesResultSet = metaData.getTables(
+				null, config.schemaName, null, new String[] { "TABLE" })) {
+			while (tablesResultSet.next()) {
+				String tableName = tablesResultSet.getString("TABLE_NAME");
+				Collection<Rule> rulesForTable = rulesByParentTable.get(tableName);
+				Multimap<String, Rule> rulesByColumn = HashMultimap.create();
+				for (Rule rule : rulesForTable) {
+					rulesByColumn.put(rule.tableField.column, rule);
+				}
+				try (ResultSet primaryKeyResultSet = 
+						metaData.getPrimaryKeys(null, config.schemaName, tableName)) {
+					while (primaryKeyResultSet.next()) {
+						String columnName = primaryKeyResultSet.getString("COLUMN_NAME");
+						if (!rulesByColumn.containsKey(columnName))
+							addNoOpRule(config.schemaName, tableName, columnName);
+					}
+				}
+			}
+		}
+	}
+
+
+	private Rule addNoOpRule(String schemaName, String tableName,
+			String columnName) {
+		TableField tableField = new TableField(tableName, columnName, schemaName);
+		return addNoOpRule(tableField);
+	}
+
+
+	private Rule addNoOpRule(TableField tableField) {
+		Rule newRule = new Rule(
+				tableField,
+				NO_OP_STRATEGY_KEY, "");
+		config.rules.add(newRule);
+		return newRule;
+	}
+
+
+	boolean validateConfig() {
+		// TODO: maybe we can safe one validate, or validate should be split
+		config.validate();
+		removeNoOpRulesWithoutDependants();
+		return config.validate();
+	}
+
+	
 	void findPossibleDependantsByName(Rule rule,
 			DatabaseMetaData metaData) throws SQLException {
-		try (ResultSet similarlyNamedColumns = metaData.getColumns(null, null, 
+		try (ResultSet similarlyNamedColumns = metaData.getColumns(null, null,
 				null, "%" + rule.tableField.column + "%")) {
 			while (similarlyNamedColumns.next()) {
 				if (!scope.tables.contains(
@@ -140,45 +219,73 @@ public class Analyzer {
 					continue;
 				TableField newItem = new TableField(
 						similarlyNamedColumns.getString("TABLE_NAME"),
-						similarlyNamedColumns.getString("COLUMN_NAME"), 
+						similarlyNamedColumns.getString("COLUMN_NAME"),
 						config.schemaName);
-				if (!(newItem.equals(rule.tableField) 
+				Rule ruleForSimilarlyNamedColumn = rulesByTableField.get(newItem);
+				if (!(newItem.equals(rule.tableField)
 						|| rule.dependants.contains(newItem)
-						|| rule.potentialDependants.contains(newItem)))
+						|| rule.potentialDependants.contains(newItem)
+						|| (ruleForSimilarlyNamedColumn != null
+								&& ruleForSimilarlyNamedColumn.dependants
+									.contains(rule.tableField))))
 					rule.potentialDependants.add(newItem);
 			}
 		}
 	}
 
+	
+	void removeNoOpRulesWithoutDependants() {
+		Iterator<Rule> ruleIterator = config.rules.iterator();
+		while (ruleIterator.hasNext()) {
+			Rule rule = ruleIterator.next();
+			if (!rule.strategy.equals(NO_OP_STRATEGY_KEY))
+				continue;
+			if (rule.dependants.isEmpty() && rule.potentialDependants.isEmpty())
+				ruleIterator.remove();
+		}
+	}
 
 
-	void findDependantsByForeignKeys(Rule rule,
-			DatabaseMetaData metaData) throws SQLException {
-		Queue<TableField> checkFields = new ArrayDeque<TableField>();
-		checkFields.add(rule.tableField);
+	void findDependantsByForeignKeys(DatabaseMetaData metaData) throws SQLException {
 		// find all dependants by foreign keys
-		while (!checkFields.isEmpty()) {
-			TableField currentField = checkFields.remove();
-			ResultSet exportedKeys = metaData.getExportedKeys(
-					null, null, currentField.table);
-			while (exportedKeys.next()) {
-				if (!scope.tables.contains(exportedKeys.getString("FKTABLE_NAME")))
-					continue;
-				if (exportedKeys.getString("PKCOLUMN_NAME")
-						.equals(currentField.column)) {
-					TableField newitem = new TableField(
-							exportedKeys.getString("FKTABLE_NAME"),
-							exportedKeys.getString("FKCOLUMN_NAME"), 
-							config.schemaName);
-					if (rule.dependants.contains(newitem))
-						continue;
-					rule.dependants.add(newitem);
-					checkFields.add(newitem);
-				}
+		for (String tableName : scope.tables) {
+			try (ResultSet exportedKeys = metaData.getExportedKeys(
+					null, null, tableName)) {
+				addDependantsFromReferences(exportedKeys);
+			}
+			try (ResultSet importedKeys = metaData.getImportedKeys(
+					null, null, tableName)) {
+				addDependantsFromReferences(importedKeys);
 			}
 		}
 	}
 
+
+	private void addDependantsFromReferences(ResultSet referencesFromMetaData)
+			throws SQLException {
+		while (referencesFromMetaData.next()) {
+			if (!scope.tables.contains(referencesFromMetaData.getString("FKTABLE_NAME")))
+				continue;
+			TableField pkTableField = new TableField(
+					referencesFromMetaData.getString("PKTABLE_NAME"),
+					referencesFromMetaData.getString("PKCOLUMN_NAME"),
+					referencesFromMetaData.getString("PKTABLE_SCHEM"));
+			if (!scope.tables.contains(pkTableField.table))
+				continue;
+			Rule ruleForPKColumn = rulesByTableField.get(pkTableField);
+			if (ruleForPKColumn == null) {
+				ruleForPKColumn = addNoOpRule(pkTableField);
+				rulesByTableField.put(pkTableField, ruleForPKColumn);
+			}
+			TableField fkTableField = new TableField(
+					referencesFromMetaData.getString("FKTABLE_NAME"),
+					referencesFromMetaData.getString("FKCOLUMN_NAME"),
+					referencesFromMetaData.getString("FKTABLE_SCHEM"));
+			if (ruleForPKColumn.dependants.contains(fkTableField))
+				continue;
+			ruleForPKColumn.dependants.add(fkTableField);
+		}
+	}
 
 
 	void validateExistingDependants(Rule rule, DatabaseMetaData metaData)
@@ -234,11 +341,14 @@ public class Analyzer {
 					.loadAndCreate(strategyClassName, stubAnonymizer,
 							connection, null));
 		}
+		strategies.put(NO_OP_STRATEGY_KEY, TransformationStrategy.loadAndCreate(
+				NoOperationStrategy.class.getName(), 
+				stubAnonymizer, connection, null));
 		return strategies;
 	}
 
 	
-	private void writeNewConfigToFile(String outputFilename) throws IOException {
+	void writeNewConfigToFile(String outputFilename) throws IOException {
 		File file = new File(outputFilename);
 		try (FileWriter fw = new FileWriter(file);
 				BufferedWriter writer = new BufferedWriter(fw)) {
@@ -270,12 +380,19 @@ public class Analyzer {
 		}
 		writer.write("\n# Table.Field\t\tType\t\tAdditionalInfo\n");
 		for (Rule rule : config.rules) {
-			writer.write(rule.tableField + "\t");
-			writer.write(rule.strategy);
+			if (rule.dependants.isEmpty() && rule.strategy.equals(NO_OP_STRATEGY_KEY))
+				writer.write('#');
+			writer.write(rule.tableField.toString());
+			if (!rule.strategy.equals(NO_OP_STRATEGY_KEY)) {
+				writer.write("\t");
+				writer.write(rule.strategy);
+			}
 			
-			if (rule.additionalInfo.length() > 0)
-				writer.write("\t" + rule.additionalInfo + "\n");
-			else
+			if (!rule.additionalInfo.isEmpty()) {
+				writer.write("\t");
+				writer.write(rule.additionalInfo);
+				writer.write("\n");
+			} else
 				writer.write("\n");
 			
 			for (TableField dependent : rule.dependants) {

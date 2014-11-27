@@ -21,6 +21,7 @@ package de.hpi.bp2013n1.anonymizer.analyzer;
  */
 
 
+import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
@@ -41,8 +42,6 @@ import org.dbunit.dataset.IDataSet;
 import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import org.dbunit.operation.DatabaseOperation;
 import org.h2.tools.RunScript;
-import org.hamcrest.Matcher;
-import org.hamcrest.Matchers;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -52,6 +51,7 @@ import com.google.common.collect.Lists;
 import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
@@ -158,36 +158,8 @@ public class AnalyzerTest {
 		File outputFile = File.createTempFile("analyzerOutput", null);
 		outputFile.delete();
 		sut.run(outputFile.getPath());
+		outputFile.deleteOnExit();
 		return outputFile;
-	}
-	
-	Matcher<Rule> isLikeRule(
-				Matcher<?> tableField,
-				Matcher<?> strategy, 
-				Matcher<?> dependants,
-				Matcher<?> potentialDependants,
-				Matcher<?> additionalInfo) {
-		return Matchers.<Rule>both(hasProperty("strategy", strategy))
-				.and(hasProperty("tableField", tableField))
-				.and(hasProperty("dependants", dependants))
-				.and(hasProperty("potentialDependants", potentialDependants))
-				.and(hasProperty("additionalInfo", additionalInfo));
-	}
-
-	Matcher<Rule> usesStrategy(
-				Matcher<?> strategy, 
-				Matcher<?> additionalInfo) {
-		return Matchers.<Rule>both(hasProperty("strategy", strategy))
-				.and(hasProperty("additionalInfo", additionalInfo));
-	}
-
-	Matcher<Rule> appliesStrategyTo(
-				Matcher<?> tableField, 
-				Matcher<?> strategy,
-				Matcher<?> additionalInfo) {
-		return Matchers.<Rule>both(hasProperty("strategy", strategy))
-				.and(hasProperty("tableField", tableField))
-				.and(hasProperty("additionalInfo", additionalInfo));
 	}
 	
 	@Test
@@ -207,7 +179,6 @@ public class AnalyzerTest {
 						equalTo(new TableField("VISITOR.ADDRESS", config.schemaName)), 
 						is("D"), 
 						isEmptyString())));
-		assertThat(newConfig.rules, hasSize(2));
 	}
 	
 	@Test
@@ -241,12 +212,17 @@ public class AnalyzerTest {
 		DatabaseMetaData metaData = originalDbConnection.getMetaData();
 		TableField originField = tableField("VISITOR.NAME");
 		Rule plainRule = new Rule(originField, "P", "");
-		sut.findDependantsByForeignKeys(plainRule, metaData);
+		config.rules.add(plainRule);
+		sut.initializeRulesByTableField();
+		sut.findDependantsByForeignKeys(metaData);
 		TableField dependentField = tableField("VISIT.VISITORNAME");
 		assertThat(plainRule.dependants, contains(dependentField));
+		config.rules.remove(plainRule);
 		Rule fullRule = new Rule(originField, "P", "", 
 				Lists.newArrayList(dependentField));
-		sut.findDependantsByForeignKeys(fullRule, metaData);
+		config.rules.add(fullRule);
+		sut.initializeRulesByTableField();
+		sut.findDependantsByForeignKeys(metaData);
 		assertThat(fullRule.dependants, contains(dependentField));
 		// TODO: test higher-order (transitive) foreign key dependencies 
 		// i.e. A -> B -> C implies A -> C
@@ -265,6 +241,7 @@ public class AnalyzerTest {
 				tableField("BUYERDETAILS.BUYERNAME"));
 		List<TableField> matchingButIndependentFields = Lists.newArrayList(matchingFields);
 		matchingButIndependentFields.remove(dependentField);
+		sut.initializeRulesByTableField();
 		
 		Rule plainRule = new Rule(originField, "P", "");
 		sut.findPossibleDependantsByName(plainRule, metaData);
@@ -289,5 +266,19 @@ public class AnalyzerTest {
 		sut.findPossibleDependantsByName(fullRuleWithPossibleDependants, metaData);
 		assertThat(fullRuleWithPossibleDependants.potentialDependants,
 				containsInAnyOrder(matchingButIndependentFields.toArray()));
+	}
+	
+	@Test
+	public void noUnneededNoOpRules() throws IOException, FatalError, DependantWithoutRuleException {
+		File outputFile = runAnalyzer();
+		Config newConfig = new Config();
+		newConfig.readFromFile(outputFile.getPath());
+		for (Rule rule : newConfig.rules) {
+			if (!rule.strategy.equals(Analyzer.NO_OP_STRATEGY_KEY))
+				continue;
+			if (rule.dependants.isEmpty())
+				assertThat("There must be no no-op rule without possible or real dependants",
+						rule.potentialDependants, is(not(empty())));
+		}
 	}
 }
