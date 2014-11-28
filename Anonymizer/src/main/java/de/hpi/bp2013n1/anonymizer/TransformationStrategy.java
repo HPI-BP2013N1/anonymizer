@@ -103,9 +103,14 @@ public abstract class TransformationStrategy {
 		}
 	}
 	
+	/**
+	 * This exception is thrown if something goes wrong during the validation
+	 * of a Rule in an implementation of TransformationStrategy.isRuleValid.
+	 * @author jreschke
+	 */
 	public static class RuleValidationException extends Exception {
 		private static final long serialVersionUID = -7079792700936251777L;
-		
+
 		public RuleValidationException(String message) {
 			super(message);
 		}
@@ -129,17 +134,17 @@ public abstract class TransformationStrategy {
 	protected Connection originalDatabase, transformationDatabase;
 	protected Anonymizer anonymizer;
 
-	public TransformationStrategy(Anonymizer anonymizer, 
-			Connection originalDatabase, Connection transformationDatabase) 
+	public TransformationStrategy(Anonymizer anonymizer,
+			Connection originalDatabase, Connection transformationDatabase)
 					throws SQLException {
 		this.anonymizer = anonymizer;
 		this.originalDatabase = originalDatabase;
 		this.transformationDatabase = transformationDatabase;
 	}
 
-	abstract public void setUpTransformation(Collection<Rule> rules) 
-			throws FetchPseudonymsFailedException, 
-			TransformationKeyCreationException, 
+	abstract public void setUpTransformation(Collection<Rule> rules)
+			throws FetchPseudonymsFailedException,
+			TransformationKeyCreationException,
 			TransformationTableCreationException, ColumnTypeNotSupportedException,
 			PreparationFailedExection;
 
@@ -154,54 +159,54 @@ public abstract class TransformationStrategy {
 			ResultSetRowReader row) throws TransformationFailedException,
 			SQLException, TransformationKeyNotFoundException;
 
-	public char[] shuffledChars() {
-		String allChars = 
+	public static char[] shuffledChars() {
+		String allChars =
 				lowerCaseCharacters() + upperCaseCharacters() + numberCharacters();
 		return shuffleArray(allChars.toCharArray());
 	}
 
-	protected String lowerCaseCharacters() {
+	protected static String lowerCaseCharacters() {
 		return "qwertzuiopasdfghjklyxcvbnm"; // äöü
 	}
 
-	protected String upperCaseCharacters() {
+	protected static String upperCaseCharacters() {
 		return lowerCaseCharacters().toUpperCase();
 	}
 
-	protected String numberCharacters() {
+	protected static String numberCharacters() {
 		return "0123456789";
 	}
 
-	protected String specialCharacters() {
+	protected static String specialCharacters() {
 		return "ß";
 	}
 
-	protected char[] lowerCaseCharArray() {
+	protected static char[] lowerCaseCharArray() {
 		return lowerCaseCharacters().toCharArray(); // + specialCharacters()
 	}
 
-	protected char[] upperCaseCharArray() {
+	protected static char[] upperCaseCharArray() {
 		return upperCaseCharacters().toCharArray();
 	}
 
-	protected char[] numberArray() {
+	protected static char[] numberArray() {
 		return numberCharacters().toCharArray();
 	}
 
-	public char[] shuffledNumberArray() {
+	public static char[] shuffledNumberArray() {
 		return shuffleArray(numberArray());
 	}
 
 	/**
 	 * returns a shuffled copy of the given array
 	 * **/
-	public char[] shuffleArray(char[] array) {
+	public static char[] shuffleArray(char[] array) {
 		char[] shuffledArray = array.clone();
 		shuffleArrayInPlace(shuffledArray);
 		return shuffledArray;
 	}
 
-	public void shuffleArrayInPlace(char[] array) {
+	public static void shuffleArrayInPlace(char[] array) {
 		Random rgen = new Random();
 		for (int i = 0; i < array.length; i++) {
 			int randomPosition = rgen.nextInt(array.length);
@@ -211,7 +216,7 @@ public abstract class TransformationStrategy {
 		}
 	}
 
-	public abstract void prepareTableTransformation(TableRuleMap tableRules) 
+	public abstract void prepareTableTransformation(TableRuleMap tableRules)
 			throws SQLException;
 	
 	public void printSummary() {

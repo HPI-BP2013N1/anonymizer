@@ -29,6 +29,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 
+/**
+ * Maps column names of a table to the Rules which describe a transformation on
+ * them.
+ */
 public class TableRuleMap {
 	public String tableName;
 	private Multimap<String, Rule> columnRules = ArrayListMultimap.create();

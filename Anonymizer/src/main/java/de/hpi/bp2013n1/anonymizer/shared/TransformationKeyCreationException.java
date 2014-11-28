@@ -1,5 +1,6 @@
 package de.hpi.bp2013n1.anonymizer.shared;
 
+
 /*
  * #%L
  * AnonymizerShared
@@ -27,6 +28,10 @@ public class TransformationKeyCreationException extends Exception {
 
 	public TransformationKeyCreationException(String message) {
 		super (message);
+	}
+
+	public TransformationKeyCreationException(String message, Throwable cause) {
+		super(message, cause);
 	}
 
 }
