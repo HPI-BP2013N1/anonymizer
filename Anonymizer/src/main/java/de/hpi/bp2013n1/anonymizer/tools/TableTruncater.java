@@ -24,7 +24,7 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.List;
+import java.util.Collection;
 import java.util.logging.Logger;
 
 import de.hpi.bp2013n1.anonymizer.Constraint;
@@ -50,7 +50,7 @@ public class TableTruncater {
 
 	public void truncateAllDestinationTables() throws SQLException {
 		Connection connection = DatabaseConnector.connect(config.destinationDB);
-		List<Constraint> constraints = constraintToggler.disableConstraints(
+		Collection<Constraint> constraints = ConstraintToggler.disableConstraints(
 				connection, config, scope);
 		try {
 			for (String tableName : scope.tables) {

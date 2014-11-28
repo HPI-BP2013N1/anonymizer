@@ -23,9 +23,8 @@ package de.hpi.bp2013n1.anonymizer.tools;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -44,7 +43,7 @@ public class ConstraintToggler {
 	public ConstraintToggler() {
 	}
 
-	public static List<Constraint> disableConstraints(Connection connection,
+	public static Set<Constraint> disableConstraints(Connection connection,
 			Config config, Scope scope) {
 		boolean supportsDisableAllForeignKeys = ConstraintToggler
 				.databaseSupportsDisableAllForeignKeys(connection);
@@ -65,7 +64,7 @@ public class ConstraintToggler {
 			}
 			return null;
 		} else {
-			List<Constraint> constraints = ConstraintToggler.findConstraints(
+			Set<Constraint> constraints = ConstraintToggler.findConstraints(
 					connection, config, scope);
 			ConstraintToggler.disableConstraintsSeparately(constraints,
 					connection);
@@ -74,7 +73,7 @@ public class ConstraintToggler {
 	}
 
 	private static void disableConstraintsSeparately(
-			List<Constraint> constraints, Connection connection) {
+			Set<Constraint> constraints, Connection connection) {
 		logger.info("Disabling " + constraints.size() + " constraints.");
 		try (Statement disableStatement = connection.createStatement()) {
 			for (Constraint constraint : constraints) {
@@ -101,21 +100,21 @@ public class ConstraintToggler {
 				+ " constraints.");
 	}
 
-	public static List<Constraint> findConstraints(Connection connection,
+	public static Set<Constraint> findConstraints(Connection connection,
 			Config config, Scope scope) {
 		ConstraintNameFinder finder = new ConstraintNameFinder(connection);
-		ArrayList<Constraint> constraintList = new ArrayList<Constraint>();
+		Set<Constraint> constraints = new HashSet<Constraint>();
 		Set<String> alreadyDoneTables = new HashSet<String>();
 
 		for (Rule rule : config.rules) {
 			if (!alreadyDoneTables.contains(rule.tableField.table)) {
-				constraintList.addAll(finder
+				constraints.addAll(finder
 						.findConstraintNames(rule.tableField.table));
 				alreadyDoneTables.add(rule.tableField.table);
 			}
 			for (TableField tableField : rule.dependants) {
 				if (!alreadyDoneTables.contains(tableField.table)) {
-					constraintList.addAll(finder
+					constraints.addAll(finder
 							.findConstraintNames(tableField.table));
 					alreadyDoneTables.add(tableField.table);
 				}
@@ -124,12 +123,12 @@ public class ConstraintToggler {
 
 		for (String tableName : scope.tables) {
 			if (!alreadyDoneTables.contains(tableName)) {
-				constraintList.addAll(finder.findConstraintNames(tableName));
+				constraints.addAll(finder.findConstraintNames(tableName));
 				alreadyDoneTables.add(tableName);
 			}
 		}
 
-		return constraintList;
+		return constraints;
 	}
 
 	public static boolean databaseSupportsDisableAllForeignKeys(
@@ -145,7 +144,7 @@ public class ConstraintToggler {
 		}
 	}
 
-	public static void enableConstraints(List<Constraint> constraints,
+	public static void enableConstraints(Collection<Constraint> constraints,
 			Connection connection) {
 		boolean supportsDisableAllForeignKeys = ConstraintToggler
 				.databaseSupportsDisableAllForeignKeys(connection);
@@ -171,7 +170,7 @@ public class ConstraintToggler {
 	}
 
 	private static void enableConstraintsSeparately(
-			List<Constraint> constraints, Connection connection) {
+			Collection<Constraint> constraints, Connection connection) {
 		logger.info("Enabling " + constraints.size() + " constraints.");
 		try (Statement disableStatement = connection.createStatement()) {
 			for (Constraint constraint : constraints) {

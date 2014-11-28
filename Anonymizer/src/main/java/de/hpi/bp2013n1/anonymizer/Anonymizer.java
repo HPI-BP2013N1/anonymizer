@@ -31,6 +31,7 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.TreeMap;
@@ -356,7 +357,7 @@ public class Anonymizer {
 					+ "source database: " + e.getMessage());
 		}
 		foreignKeyDeletions.addForeignKeysForRuleDependents(config.rules);
-		List<Constraint> constraints = disableAnonymizedDbConstraints();
+		Collection<Constraint> constraints = disableAnonymizedDbConstraints();
 
 		prepareTransformations();
 		copyAndAnonymizeData();
@@ -393,7 +394,7 @@ public class Anonymizer {
 		}
 	}
 
-	private List<Constraint> disableAnonymizedDbConstraints() {
+	private Collection<Constraint> disableAnonymizedDbConstraints() {
 		return ConstraintToggler.disableConstraints(anonymizedDatabase, config, scope);
 	}
 	
