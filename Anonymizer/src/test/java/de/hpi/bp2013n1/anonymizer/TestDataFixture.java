@@ -138,17 +138,33 @@ public abstract class TestDataFixture implements AutoCloseable {
 
 	public void populateDatabases(String schemaName)
 			throws DatabaseUnitException, IOException, SQLException {
+		createOriginalDatabaseTables();
+		createDestinationDatabaseTables();
+		createTransformationDatabaseTables();
+		populateTables(schemaName);
+	}
+
+	public void createOriginalDatabaseTables() throws SQLException, IOException {
 		for (InputStream ddlStream : getDDLs()) {
 			executeDdlScript(ddlStream, originalDbConnection);
 		}
+	}
+
+	public void createDestinationDatabaseTables() throws SQLException, IOException {
 		for (InputStream ddlStream : getDDLs()) {
-			// cannot do this in the loop above because
-			// the resources InputStreams cannot be reset
 			executeDdlScript(ddlStream, destinationDbConnection);
 		}
+	}
+
+	public void createTransformationDatabaseTables() throws SQLException,
+			IOException {
 		for (InputStream ddlStream : getTransformationDDLs()) {
 			executeDdlScript(ddlStream, transformationDbConnection);
 		}
+	}
+
+	public void populateTables(String schemaName) throws DatabaseUnitException,
+			IOException, SQLException {
 		InputStream originalDataSet = getOriginalDataSet();
 		if (originalDataSet != null)
 			importData(originalDbConnection, schemaName, originalDataSet);
