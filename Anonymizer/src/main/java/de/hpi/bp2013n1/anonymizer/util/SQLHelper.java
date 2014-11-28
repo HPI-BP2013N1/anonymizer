@@ -43,14 +43,14 @@ public abstract class SQLHelper {
 	
 	public abstract String truncateTable(String qualifiedTableName);
 	
-	public static String truncateTable(Connection connection, 
+	public static String truncateTable(Connection connection,
 			String qualifiedTableName) throws SQLException {
 		return getHelperFor(connection).truncateTable(qualifiedTableName);
 	}
 
 	public abstract boolean supportsDisableAllForeignKeys();
 
-	public static boolean supportsDisableAllForeignKeys(Connection connection) 
+	public static boolean supportsDisableAllForeignKeys(Connection connection)
 			throws SQLException {
 		return getHelperFor(connection).supportsDisableAllForeignKeys();
 	}
@@ -64,7 +64,7 @@ public abstract class SQLHelper {
 
 	public abstract String enableAllForeignKeys();
 
-	public static String enableAllForeignKeys(Connection connection) 
+	public static String enableAllForeignKeys(Connection connection)
 			throws SQLException {
 		return getHelperFor(connection).enableAllForeignKeys();
 	}
@@ -96,16 +96,22 @@ public abstract class SQLHelper {
 		return getHelperFor(connection).takeConstant(connection, expression);
 	}
 	
-	public abstract void createSchema(Connection connection, String schema) 
+	public abstract void createSchema(Connection connection, String schema)
 			throws SQLException;
 
 	public static String qualifiedTableName(String schema, String table) {
 		return schema + "." + table;
 	}
 
-	public static void createSchema(String schema, Connection connection) 
+	public static void createSchema(String schema, Connection connection)
 			throws SQLException {
 		getHelperFor(connection).createSchema(connection, schema);
 	}
 	
+	public abstract String setSchemaStatement(String schema);
+	
+	public static String setSchemaStatement(String schema, Connection connection)
+			throws SQLException {
+		return getHelperFor(connection).setSchemaStatement(schema);
+	}
 }

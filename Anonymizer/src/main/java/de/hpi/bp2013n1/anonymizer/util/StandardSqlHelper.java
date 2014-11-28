@@ -80,4 +80,9 @@ public class StandardSqlHelper extends SQLHelper {
 		}
 	}
 
+	@Override
+	public String setSchemaStatement(String schema) {
+		return "SET SCHEMA \"" + schema + "\"";
+	}
+
 }

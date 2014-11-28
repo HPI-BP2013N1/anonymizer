@@ -43,6 +43,7 @@ import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
+import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 
 public abstract class TestDataFixture implements AutoCloseable {
 
@@ -191,15 +192,15 @@ public abstract class TestDataFixture implements AutoCloseable {
 
 	protected void setSchema() throws SQLException {
 		try (Statement s = originalDbConnection.createStatement()) {
-			s.execute("SET SCHEMA = " + config.schemaName);
+			s.execute(SQLHelper.setSchemaStatement(config.schemaName, originalDbConnection));
 		}
 		// originalDbConnection.setSchema(config.schemaName);
 		try (Statement s = transformationDbConnection.createStatement()) {
-			s.execute("SET SCHEMA = " + config.schemaName);
+			s.execute(SQLHelper.setSchemaStatement(config.schemaName, transformationDbConnection));
 		}
 		// transformationDbConnection.setSchema(config.schemaName);
 		try (Statement s = destinationDbConnection.createStatement()) {
-			s.execute("SET SCHEMA = " + config.schemaName);
+			s.execute(SQLHelper.setSchemaStatement(config.schemaName, destinationDbConnection));
 		}
 		// destinationDbConnection.setSchema(config.schemaName);
 	}
