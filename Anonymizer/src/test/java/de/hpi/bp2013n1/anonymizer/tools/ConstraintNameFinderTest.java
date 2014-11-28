@@ -21,8 +21,8 @@ package de.hpi.bp2013n1.anonymizer.tools;
  */
 
 
-import static org.junit.Assert.*;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertThat;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -54,12 +54,14 @@ public class ConstraintNameFinderTest {
 					+ "FOREIGN KEY(A, B) REFERENCES TABLE2(A, B))");
 			ddl.executeUpdate("CREATE TABLE TABLE5 (A INT, "
 					+ "FOREIGN KEY(A) REFERENCES TABLE1(A))");
+			ddl.executeUpdate("CREATE TABLE TABLE6 (A INT)");
 		}
 		assertThat(sut.findConstraintNames("TABLE1"), hasSize(2));
 		assertThat(sut.findConstraintNames("TABLE2"), hasSize(1));
-		assertThat(sut.findConstraintNames("TABLE3"), hasSize(0));
-		assertThat(sut.findConstraintNames("TABLE4"), hasSize(0));
-		assertThat(sut.findConstraintNames("TABLE5"), hasSize(0));
+		assertThat(sut.findConstraintNames("TABLE3"), hasSize(1));
+		assertThat(sut.findConstraintNames("TABLE4"), hasSize(1));
+		assertThat(sut.findConstraintNames("TABLE5"), hasSize(1));
+		assertThat(sut.findConstraintNames("TABLE6"), hasSize(0));
 	}
 
 }

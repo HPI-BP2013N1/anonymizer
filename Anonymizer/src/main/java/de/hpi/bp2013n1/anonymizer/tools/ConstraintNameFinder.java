@@ -44,28 +44,37 @@ public class ConstraintNameFinder {
 	}
 
 	public List<Constraint> findConstraintNames(String tableName) {
-		ArrayList<Constraint> result = new ArrayList<Constraint>();
+		List<Constraint> result = new ArrayList<Constraint>();
 		try {
 			DatabaseMetaData metaData = connection.getMetaData();
 			try (ResultSet resultSet = metaData.getExportedKeys(
 					connection.getCatalog(), null, tableName)) {
-				String lastFK = null;
-				while (resultSet.next()) {
-					String fkName = resultSet.getString("FK_NAME");
-					String fkSchema = resultSet.getString("FKTABLE_SCHEM");
-					String fkTable = resultSet.getString("FKTABLE_NAME");
-					String fk = fkName + "." + fkSchema + "." + fkTable;
-					if (fk.equals(lastFK))
-						continue;
-					result.add(new Constraint(fkSchema, fkTable, fkName));
-					lastFK = fk;
-				}
+				recordConstraints(resultSet, result);
+			}
+			try (ResultSet resultSet = metaData.getImportedKeys(
+					connection.getCatalog(), null, tableName)) {
+				recordConstraints(resultSet, result);
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
 
 		return result;
+	}
+
+	private void recordConstraints(ResultSet relationshipResultSet,
+			List<Constraint> constraints) throws SQLException {
+		String lastFK = null;
+		while (relationshipResultSet.next()) {
+			String fkName = relationshipResultSet.getString("FK_NAME");
+			String fkSchema = relationshipResultSet.getString("FKTABLE_SCHEM");
+			String fkTable = relationshipResultSet.getString("FKTABLE_NAME");
+			String fk = fkName + "." + fkSchema + "." + fkTable;
+			if (fk.equals(lastFK))
+				continue;
+			constraints.add(new Constraint(fkSchema, fkTable, fkName));
+			lastFK = fk;
+		}
 	}
 
 }
