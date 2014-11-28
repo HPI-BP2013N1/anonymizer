@@ -35,7 +35,7 @@
           <target>1.7</target>
         </configuration>
       </plugin>
-      <plugin>
+      <!-- <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>license-maven-plugin</artifactId>
         <version>1.7</version>
@@ -50,7 +50,7 @@
             <phase>process-sources</phase>
           </execution>
         </executions>
-      </plugin>
+      </plugin> -->
     </plugins>
     <pluginManagement>
       <plugins>
