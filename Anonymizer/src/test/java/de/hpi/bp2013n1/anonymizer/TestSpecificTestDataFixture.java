@@ -53,9 +53,19 @@ public class TestSpecificTestDataFixture extends TestDataFixture {
 	protected Iterable<InputStream> getDDLs() {
 		return Lists.newArrayList(getResourceAsStream("-ddl.sql"));
 	}
-	
+
+	@Override
+	protected Iterable<InputStream> getTearDownSQL() {
+		return Lists.newArrayList(getResourceAsStream("-teardown.sql"));
+	}
+
 	@Override
 	protected Iterable<InputStream> getTransformationDDLs() {
+		return Lists.newArrayList();
+	}
+
+	@Override
+	protected Iterable<InputStream> getTransformationTearDownSQL() {
 		return Lists.newArrayList();
 	}
 	

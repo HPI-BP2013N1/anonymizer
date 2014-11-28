@@ -157,6 +157,20 @@ public abstract class TestDataFixture implements AutoCloseable {
 			importData(transformationDbConnection, schemaName,
 					transformationDataSet);
 	}
+	
+	public void tearDownDatabases() throws SQLException, IOException {
+		tearDownDatabases(config.schemaName);
+	}
+	
+	public void tearDownDatabases(String schemaName) throws SQLException,
+			IOException {
+		for (InputStream tearDownStream : getTearDownSQL()) {
+			executeDdlScript(tearDownStream, originalDbConnection);
+		}
+		for (InputStream tearDownStream : getTearDownSQL()) {
+			executeDdlScript(tearDownStream, destinationDbConnection);
+		}
+	}
 
 	/**
 	 * Template method for datasets that should be inserted into the original
@@ -183,12 +197,29 @@ public abstract class TestDataFixture implements AutoCloseable {
 	protected abstract Iterable<InputStream> getDDLs();
 
 	/**
+	 * Template method for sql streams that contain statements which drop
+	 * tables which were created by the DDLs in the original and destination
+	 * database.
+	 * 
+	 * @return
+	 */
+	protected abstract Iterable<InputStream> getTearDownSQL();
+
+	/**
 	 * Template method for DDLs that should be applied to the transformation
 	 * database.
 	 * 
 	 * @return
 	 */
 	protected abstract Iterable<InputStream> getTransformationDDLs();
+
+	/**
+	 * Template method for sql stream that drops tables created by the
+	 * transformation database DDL.
+	 * 
+	 * @return
+	 */
+	protected abstract Iterable<InputStream> getTransformationTearDownSQL();
 
 	protected void setSchema() throws SQLException {
 		try (Statement s = originalDbConnection.createStatement()) {

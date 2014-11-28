@@ -86,9 +86,21 @@ public class StandardTestDataFixture extends TestDataFixture {
 	}
 
 	@Override
+	protected Iterable<InputStream> getTearDownSQL() {
+		return Lists.newArrayList(
+				StandardTestDataFixture.class.getResourceAsStream("testschema.teardown.sql"));
+	}
+
+	@Override
 	protected Iterable<InputStream> getTransformationDDLs() {
 		return Lists.newArrayList(
 				StandardTestDataFixture.class.getResourceAsStream("testpseudonymsschema.ddl.sql"));
+	}
+
+	@Override
+	protected Iterable<InputStream> getTransformationTearDownSQL() {
+		return Lists.newArrayList(
+				StandardTestDataFixture.class.getResourceAsStream("testpseudonymsschema.teardown.sql"));
 	}
 
 	@Override
