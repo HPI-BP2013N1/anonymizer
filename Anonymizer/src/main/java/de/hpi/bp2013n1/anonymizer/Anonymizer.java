@@ -394,7 +394,7 @@ public class Anonymizer {
 	}
 
 	private List<Constraint> disableAnonymizedDbConstraints() {
-		return toggler.disableConstraints(anonymizedDatabase, config, scope);
+		return ConstraintToggler.disableConstraints(anonymizedDatabase, config, scope);
 	}
 	
 	private void copyAndAnonymizeData() {

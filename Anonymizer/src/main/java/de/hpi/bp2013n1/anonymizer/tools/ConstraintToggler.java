@@ -24,7 +24,9 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import de.hpi.bp2013n1.anonymizer.Constraint;
@@ -42,7 +44,7 @@ public class ConstraintToggler {
 	public ConstraintToggler() {
 	}
 
-	public List<Constraint> disableConstraints(Connection connection,
+	public static List<Constraint> disableConstraints(Connection connection,
 			Config config, Scope scope) {
 		boolean supportsDisableAllForeignKeys = ConstraintToggler
 				.databaseSupportsDisableAllForeignKeys(connection);
@@ -88,7 +90,7 @@ public class ConstraintToggler {
 				} catch (SQLException e) {
 					logger.warning(String.format(
 							"Could not disable constraint %s on %s: %s",
-							constraint.constraintName, qualifiedTableName, 
+							constraint.constraintName, qualifiedTableName,
 							e.getMessage()));
 				}
 			}
@@ -103,16 +105,16 @@ public class ConstraintToggler {
 			Config config, Scope scope) {
 		ConstraintNameFinder finder = new ConstraintNameFinder(connection);
 		ArrayList<Constraint> constraintList = new ArrayList<Constraint>();
-		ArrayList<String> alreadyDoneTables = new ArrayList<String>();
+		Set<String> alreadyDoneTables = new HashSet<String>();
 
 		for (Rule rule : config.rules) {
-			if (alreadyDoneTables.indexOf(rule.tableField.table) == -1) {
+			if (!alreadyDoneTables.contains(rule.tableField.table)) {
 				constraintList.addAll(finder
 						.findConstraintNames(rule.tableField.table));
 				alreadyDoneTables.add(rule.tableField.table);
 			}
 			for (TableField tableField : rule.dependants) {
-				if (alreadyDoneTables.indexOf(tableField.table) == -1) {
+				if (!alreadyDoneTables.contains(tableField.table)) {
 					constraintList.addAll(finder
 							.findConstraintNames(tableField.table));
 					alreadyDoneTables.add(tableField.table);
@@ -121,7 +123,7 @@ public class ConstraintToggler {
 		}
 
 		for (String tableName : scope.tables) {
-			if (alreadyDoneTables.indexOf(tableName) == -1) {
+			if (!alreadyDoneTables.contains(tableName)) {
 				constraintList.addAll(finder.findConstraintNames(tableName));
 				alreadyDoneTables.add(tableName);
 			}
