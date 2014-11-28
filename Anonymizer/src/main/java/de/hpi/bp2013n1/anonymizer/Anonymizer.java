@@ -444,7 +444,7 @@ public class Anonymizer {
 					strategy.prepareTableTransformation(tableRuleMapForStrategy);
 				}
 				
-			} catch (SQLException e) {
+			} catch (SQLException | FetchPseudonymsFailedException e) {
 				anonymizerLogger.warning("Fetching rows failed: " + e.getMessage());
 				e.printStackTrace();
 				return;

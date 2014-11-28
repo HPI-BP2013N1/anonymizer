@@ -101,6 +101,10 @@ public abstract class TransformationStrategy {
 		public FetchPseudonymsFailedException(String message) {
 			super(message);
 		}
+
+		public FetchPseudonymsFailedException(String message, SQLException cause) {
+			super(message, cause);
+		}
 	}
 	
 	/**
@@ -217,7 +221,7 @@ public abstract class TransformationStrategy {
 	}
 
 	public abstract void prepareTableTransformation(TableRuleMap tableRules)
-			throws SQLException;
+			throws SQLException, FetchPseudonymsFailedException;
 	
 	public void printSummary() {
 		// no-op by default, subclasses may override this
