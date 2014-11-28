@@ -25,6 +25,7 @@ import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 
 public class AnalyzerDependencyDetectionTest {
@@ -35,7 +36,7 @@ public class AnalyzerDependencyDetectionTest {
 	@Before
 	public void setUp() throws ClassNotFoundException, IOException,
 			DependantWithoutRuleException, SQLException, DatabaseUnitException,
-			FatalError {
+			FatalError, MalformedException {
 		testData = new TestSpecificTestDataFixture(this);
 		testData.populateDatabases();
 		sut = new Analyzer(testData.getOriginalDbConnection(),

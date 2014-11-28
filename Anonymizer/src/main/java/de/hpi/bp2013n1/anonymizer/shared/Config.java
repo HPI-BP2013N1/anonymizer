@@ -43,6 +43,22 @@ import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class Config {
 	private static final Charset CONFIG_CHARSET = StandardCharsets.UTF_8;
+	
+	public static class MalformedException extends Exception {
+		private static final long serialVersionUID = 4579175683815643144L;
+
+		public MalformedException() {
+			super();
+		}
+
+		public MalformedException(String message, Throwable cause) {
+			super(message, cause);
+		}
+
+		public MalformedException(String message) {
+			super(message);
+		}
+	}
 
 	public static class DependantWithoutRuleException extends Exception {
 		public DependantWithoutRuleException() {
@@ -70,20 +86,20 @@ public class Config {
 	
 	private static Logger configLogger = Logger.getLogger(Config.class.getName());
 	
-	public static Config fromFile(String fileName) throws DependantWithoutRuleException, IOException {
+	public static Config fromFile(String fileName) throws DependantWithoutRuleException, IOException, MalformedException {
 		Config config = new Config();
 		config.readFromFile(fileName);
 		return config;
 	}
 	
-	public void readFromFile(String filename) throws DependantWithoutRuleException, IOException {
+	public void readFromFile(String filename) throws DependantWithoutRuleException, IOException, MalformedException {
 		try (BufferedReader reader = Files.newBufferedReader(
 				FileSystems.getDefault().getPath(filename), CONFIG_CHARSET)) {
 			read(reader);
 		}
 	}
 	
-	public void readFromURL(URL url) throws DependantWithoutRuleException, IOException {
+	public void readFromURL(URL url) throws DependantWithoutRuleException, IOException, MalformedException {
 		try (InputStream inputStream = url.openStream();
 				InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
 				BufferedReader bufferedReader = new BufferedReader(inputStreamReader)) {
@@ -92,7 +108,7 @@ public class Config {
 	}
 	
 	public void read(BufferedReader reader)
-			throws DependantWithoutRuleException, IOException {
+			throws DependantWithoutRuleException, IOException, MalformedException {
 		String line;
 		readHeader(reader);
 		Pattern keyValuePattern = Pattern.compile(
@@ -145,7 +161,7 @@ public class Config {
 	}
 	
 	
-	private void readHeader(BufferedReader reader) throws IOException {
+	private void readHeader(BufferedReader reader) throws IOException, MalformedException {
 		int connectionCount = 0;
 		while (true) {
 			String line = reader.readLine();
@@ -176,10 +192,15 @@ public class Config {
 				return;
 			} else {
 				String[] parts = line.split("\\s+", 3);
+				try {
 				// url username and password
 				parameters.url = parts[0];
 				parameters.user = parts[1];
 				parameters.password = parts[2];
+				} catch (IndexOutOfBoundsException e) {
+					throw new MalformedException(
+							"invalid database specification: " + line, e);
+				}
 			}
 		}
 	}

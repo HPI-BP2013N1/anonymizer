@@ -12,13 +12,14 @@ import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
 import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 
 public class TestSpecificTestDataFixture extends TestDataFixture {
 	private String filenamePrefix = "";
 	private Object testObject;
 
 	public TestSpecificTestDataFixture(Object testObject, String filenamePrefix) throws IOException,
-			DependantWithoutRuleException, ClassNotFoundException, SQLException {
+			DependantWithoutRuleException, ClassNotFoundException, SQLException, MalformedException {
 		this.testObject = testObject;
 		this.filenamePrefix = filenamePrefix;
 		readConfigAndScope();
@@ -26,7 +27,7 @@ public class TestSpecificTestDataFixture extends TestDataFixture {
 	}
 	
 	public TestSpecificTestDataFixture(Object testObject) throws IOException,
-			DependantWithoutRuleException, ClassNotFoundException, SQLException {
+			DependantWithoutRuleException, ClassNotFoundException, SQLException, MalformedException {
 		this(testObject, testObject.getClass().getSimpleName());
 	}
 	

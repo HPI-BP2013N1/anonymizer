@@ -39,9 +39,10 @@ import org.dbunit.operation.DatabaseOperation;
 import org.h2.tools.RunScript;
 
 import de.hpi.bp2013n1.anonymizer.shared.Config;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
-import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 
 public abstract class TestDataFixture implements AutoCloseable {
 
@@ -245,7 +246,7 @@ public abstract class TestDataFixture implements AutoCloseable {
 	}
 
 	protected void readConfigAndScope() throws IOException,
-			DependantWithoutRuleException {
+			DependantWithoutRuleException, MalformedException {
 		config = new Config();
 		config.readFromURL(getConfigURL());
 		scope = new Scope();

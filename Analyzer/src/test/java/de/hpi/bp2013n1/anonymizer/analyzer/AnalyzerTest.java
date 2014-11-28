@@ -52,6 +52,7 @@ import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
@@ -269,7 +270,7 @@ public class AnalyzerTest {
 	}
 	
 	@Test
-	public void noUnneededNoOpRules() throws IOException, FatalError, DependantWithoutRuleException {
+	public void noUnneededNoOpRules() throws IOException, FatalError, DependantWithoutRuleException, MalformedException {
 		File outputFile = runAnalyzer();
 		Config newConfig = new Config();
 		newConfig.readFromFile(outputFile.getPath());

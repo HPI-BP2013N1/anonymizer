@@ -30,6 +30,7 @@ import java.util.logging.Logger;
 import de.hpi.bp2013n1.anonymizer.Constraint;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
 import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
@@ -63,7 +64,7 @@ public class TableTruncater {
 		}
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws MalformedException {
 		if (args.length != 2) {
 			System.out.println("Usage: java " + TableTruncater.class.getName()
 					+ " config-file scope-file");

@@ -35,11 +35,12 @@ import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
 
 public class StandardTestDataFixture extends TestDataFixture {
 	
-	public StandardTestDataFixture() throws IOException, DependantWithoutRuleException, ClassNotFoundException, SQLException  {
+	public StandardTestDataFixture() throws IOException, DependantWithoutRuleException, ClassNotFoundException, SQLException, MalformedException  {
 		readConfigAndScope();
 		createDbConnections();
 	}
@@ -51,7 +52,7 @@ public class StandardTestDataFixture extends TestDataFixture {
 
 	public StandardTestDataFixture(Connection originalDbConnection,
 			Connection destinationDbConnection,
-			Connection transformationDbConnection) throws IOException, DependantWithoutRuleException {
+			Connection transformationDbConnection) throws IOException, DependantWithoutRuleException, MalformedException {
 		readConfigAndScope();
 		this.originalDbConnection = originalDbConnection;
 		this.destinationDbConnection = destinationDbConnection;

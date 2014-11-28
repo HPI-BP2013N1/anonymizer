@@ -35,6 +35,7 @@ import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 
 public class ConfigTest {
 	
@@ -90,7 +91,7 @@ public class ConfigTest {
 			+ "Table2.Column2 S2\n";
 	
 	@Test
-	public void testSimpleRead() throws IOException, DependantWithoutRuleException {
+	public void testSimpleRead() throws IOException, DependantWithoutRuleException, MalformedException {
 		try (StringReader stringReader = new StringReader(simpleConfig);
 				BufferedReader reader = new BufferedReader(stringReader)) {
 			sut.read(reader);

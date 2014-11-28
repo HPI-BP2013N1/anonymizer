@@ -32,6 +32,7 @@ import org.junit.Test;
 
 import de.hpi.bp2013n1.anonymizer.Anonymizer.FatalError;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 
 public class ForeignKeyDeletionsByConfigRuleMultiKeyTest {
 
@@ -39,7 +40,7 @@ public class ForeignKeyDeletionsByConfigRuleMultiKeyTest {
 	private File logFile;
 	
 	@Before
-	public void createTestData() throws ClassNotFoundException, IOException, DependantWithoutRuleException, SQLException, DatabaseUnitException {
+	public void createTestData() throws ClassNotFoundException, IOException, DependantWithoutRuleException, SQLException, DatabaseUnitException, MalformedException {
 		testData = new TestSpecificTestDataFixture(this);
 		testData.populateDatabases();
 		testData.setSchema();
