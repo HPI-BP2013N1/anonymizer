@@ -111,7 +111,7 @@ public class Anonymizer {
 	/**
 	 * Initializes Anonymizer
 	 * Connects databases specified in config
-	 * Creates strategies with database connections 
+	 * Creates strategies with database connections
 	 * 
 	 * @param config Config object generated from config file.
 	 * @param scope Scope object generated from scope file.
@@ -149,9 +149,9 @@ public class Anonymizer {
 			anonymizerLogger.severe("Could not access strategy constructor: "
 					+ e.getMessage());
 			throw new FatalError(e);
-		} 
+		}
 		// newInstance
-		catch (InstantiationException | IllegalAccessException 
+		catch (InstantiationException | IllegalAccessException
 				| IllegalArgumentException | InvocationTargetException e) {
 			anonymizerLogger.severe("Could not create strategy: " + e.getMessage());
 			throw new FatalError(e);
@@ -198,7 +198,7 @@ public class Anonymizer {
 	
 	public void loadAndInstantiateStrategies() throws ClassNotFoundException,
 			NoSuchMethodException, InstantiationException,
-			IllegalAccessException, InvocationTargetException, 
+			IllegalAccessException, InvocationTargetException,
 			ClassCastException {
 		anonymizerLogger.info("Loading transformation strategies.");
 		for (Rule rule : config.rules) {
@@ -210,13 +210,13 @@ public class Anonymizer {
 	}
 	
 	protected void loadAndInstanciateStrategy(String strategyClassName)
-					throws ClassNotFoundException, NoSuchMethodException, 
-					InstantiationException, IllegalAccessException, 
+					throws ClassNotFoundException, NoSuchMethodException,
+					InstantiationException, IllegalAccessException,
 					InvocationTargetException, ClassCastException {
 		System.out.println("Loading " + strategyClassName);
 		try {
-			TransformationStrategy strategy = 
-					TransformationStrategy.loadAndCreate(strategyClassName, 
+			TransformationStrategy strategy =
+					TransformationStrategy.loadAndCreate(strategyClassName,
 							this, originalDatabase, transformationDB);
 			transformationStrategies.add(strategy);
 			strategyByClassName.put(strategyClassName, strategy);
@@ -259,13 +259,13 @@ public class Anonymizer {
 	 * 
 	 * @param args
 	 *            [0] = path to intermediary config file, args[1] = path to scope file
-	 * @throws Exception 
+	 * @throws Exception
 	 */
-	public static void main(String[] args) throws Exception {			
+	public static void main(String[] args) throws Exception {
 		if (args.length < 3) {
 			System.err.println("Expected 3 Arguments\n" +
-					"1. : path to intermediary config file, \n" + 
-					"2. : path to scope file,\n" + 
+					"1. : path to intermediary config file, \n" +
+					"2. : path to scope file,\n" +
 					"3. : desired name of logfile");
 			return;
 		}
@@ -281,11 +281,11 @@ public class Anonymizer {
 			anonymizerLogger.info("Reading config file.");
 			config.readFromFile(arguments.get(0));
 		} catch (IOException e) {
-			anonymizerLogger.severe("Could not read from config file: " 
+			anonymizerLogger.severe("Could not read from config file: "
 					+ e.getMessage());
 			return;
 		} catch (Exception e) {
-			anonymizerLogger.severe("Reading config file failed: " 
+			anonymizerLogger.severe("Reading config file failed: "
 					+ e.getMessage());
 			return;
 		}
@@ -312,7 +312,7 @@ public class Anonymizer {
 		Logger logger = Logger.getLogger("de.hpi.bp2013n1");
 		logFileHandler = new FileHandler(logFilename);
 		
-		logFormatter = new SimpleFormatter();		
+		logFormatter = new SimpleFormatter();
 						
 		logger.addHandler(logFileHandler);
 		logFileHandler.setFormatter(logFormatter);
@@ -321,7 +321,7 @@ public class Anonymizer {
 	public int validateRules() throws SQLException {
 		anonymizerLogger.info("Checking whether the transformation rules are valid.");
 		int numberOfErrors = 0;
-		RuleValidator ruleValidator = new RuleValidator(strategyByClassName, 
+		RuleValidator ruleValidator = new RuleValidator(strategyByClassName,
 				anonymizedDatabase.getMetaData());
 		for (Rule rule : config.rules) {
 			if (!ruleValidator.isValid(rule)) {
@@ -339,7 +339,7 @@ public class Anonymizer {
 	 * @throws TransformationTableCreationException
 	 * @throws TransformationKeyCreationException
 	 * @throws FetchPseudonymsFailedException
-	 * @throws PreparationFailedExection 
+	 * @throws PreparationFailedExection
 	 */
 	public void anonymize() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
@@ -383,7 +383,7 @@ public class Anonymizer {
 			}
 			if (!missingTables.isEmpty())
 				throw new TableNotFoundException(
-						"The following tables could not be found:\n" 
+						"The following tables could not be found:\n"
 								+ Joiner.on('\n').join(missingTables));
 		} catch (SQLException e) {
 			anonymizerLogger.severe("Could not determine if all tables exist "
@@ -420,7 +420,7 @@ public class Anonymizer {
 	}
 
 	private void copyAndAnonymizeTable(TableRuleMap tableRuleMap) {
-		anonymizerLogger.info("Copying data from: " + tableRuleMap.tableName + 
+		anonymizerLogger.info("Copying data from: " + tableRuleMap.tableName +
 				" (table " + (++currentTableNumber) + "/" + tableRuleMaps.size() + ").");
 		// make sure target newDB is empty
 		String qualifiedTableName = config.schemaName + "." + tableRuleMap.tableName;
@@ -452,7 +452,7 @@ public class Anonymizer {
 			copyAndAnonymizeRows(tableRuleMap, qualifiedTableName, rsMeta,
 					rowCount, rs);
 		} catch (SQLException e) {
-			anonymizerLogger.severe("Could not query table " 
+			anonymizerLogger.severe("Could not query table "
 					+ qualifiedTableName + ": " + e.getMessage());
 		}
 	}
@@ -474,7 +474,7 @@ public class Anonymizer {
 		.append(") VALUES (");
 		for (int j = 0; j < columnCount - 1; j++)
 			insertQueryBuilder.append("?,");
-		insertQueryBuilder.append("?)");			
+		insertQueryBuilder.append("?)");
 		
 		ResultSetRowReader rowReader = new ResultSetRowReader(rs);
 		rowReader.setCurrentTable(tableRuleMap.tableName);
@@ -487,7 +487,7 @@ public class Anonymizer {
 					copyAndAnonymizeRow(tableRuleMap, qualifiedTableName, rsMeta,
 							columnCount, rowReader, insertStatement);
 				} catch (SQLException e) {
-					anonymizerLogger.severe("SQL error when transforming row #" 
+					anonymizerLogger.severe("SQL error when transforming row #"
 							+ (processedRowsCount + 1) + ": " + e.getMessage());
 				}
 				processedRowsCount++;
@@ -522,7 +522,7 @@ public class Anonymizer {
 	private void logBatchInsertError(SQLException e) {
 		anonymizerLogger.severe("Error(s) during batch insert: " + e.getMessage());
 		for (Throwable chainedException : Iterables.skip(e, 1)) {
-			anonymizerLogger.severe("Insert error: " 
+			anonymizerLogger.severe("Insert error: "
 					+ chainedException.getMessage());
 		}
 	}
@@ -552,14 +552,14 @@ public class Anonymizer {
 		for (Rule configRule : tableRuleMap.getRules(null)) {
 			if (Iterables.isEmpty(
 					anonymizeValue(null, configRule, rowReader, null, tableRuleMap))) {
-				if (retainRow 
+				if (retainRow
 						|| retainService.currentRowShouldBeRetained(
-								configRule.tableField.schema, 
+								configRule.tableField.schema,
 								configRule.tableField.table,
 								rowReader)) {
 					// skip this transformation which deleted the tuple
 					anonymizerLogger.info(
-							"Not deleting a row in " 
+							"Not deleting a row in "
 									+ qualifiedTableName + " because it "
 									+ "was previously marked to be "
 									+ "retained.");
@@ -584,18 +584,18 @@ public class Anonymizer {
 						Iterable<?> transformationResults = anonymizeValue(
 								intermediateValue, configRule, rowReader, columnName,
 								tableRuleMap);
-						newValues = Iterables.concat(newValues, 
+						newValues = Iterables.concat(newValues,
 								transformationResults);
 					}
 					if (!newValues.iterator().hasNext()) {
-						if (retainRow 
+						if (retainRow
 								|| retainService.currentRowShouldBeRetained(
-										configRule.tableField.schema, 
+										configRule.tableField.schema,
 										configRule.tableField.table,
 										rowReader)) {
 							// skip this transformation which deleted the tuple
 							anonymizerLogger.info(
-									"Not deleting a row in " 
+									"Not deleting a row in "
 											+ qualifiedTableName + " because it "
 											+ "was previously marked to be "
 											+ "retained.");
@@ -610,27 +610,27 @@ public class Anonymizer {
 					}
 					currentValues = newValues;
 				}
-				columnValues.add(currentValues); 
+				columnValues.add(currentValues);
 			} else {
 				// if column doesn't have to be anonymized, take old value
-				columnValues.add(Lists.newArrayList(rowReader.getObject(j))); 
+				columnValues.add(Lists.newArrayList(rowReader.getObject(j)));
 			}
-		}					
+		}
 		try {
 			addBatchInserts(insertStatement, columnValues);
 		} catch (SQLException e) {
-			anonymizerLogger.severe("Adding insert statement failed: " 
+			anonymizerLogger.severe("Adding insert statement failed: "
 					+ e.getMessage());
 			e.printStackTrace();
 		}
 	}
 
 	/**
-	 * Compute the cross product of columnValues and add them to 
+	 * Compute the cross product of columnValues and add them to
 	 * anonymizedDatabaseStatement with {@link PreparedStatement.addBatch}.
 	 * @param anonymizedDatabaseStatement
 	 * @param columnValues
-	 * @throws SQLException if calls to anonymizedDatabaseStatement fail 
+	 * @throws SQLException if calls to anonymizedDatabaseStatement fail
 	 */
 	private void addBatchInserts(PreparedStatement anonymizedDatabaseStatement,
 			List<Iterable<?>> columnValues) throws SQLException {
@@ -644,7 +644,7 @@ public class Anonymizer {
 		} else {
 			for (Object columnValue : columnValues.get(columnIndex - 1)) {
 				anonymizedDatabaseStatement.setObject(columnIndex, columnValue);
-				addBatchInserts(anonymizedDatabaseStatement, columnValues, 
+				addBatchInserts(anonymizedDatabaseStatement, columnValues,
 						columnIndex + 1);
 			}
 		}
@@ -659,17 +659,17 @@ public class Anonymizer {
 			return strategy.transform(currentValue, configRule, rowReader);
 		} catch (TransformationKeyNotFoundException e) {
 			anonymizerLogger.log(Level.SEVERE,
-					"Transformation value for \"" + 
-							currentValue + "\" (from table " + 
-					tableRules.tableName + "." + columnName + 
-					") was not found in keys for " + 
-					configRule.tableField + 
+					"Transformation value for \"" +
+							currentValue + "\" (from table " +
+					tableRules.tableName + "." + columnName +
+					") was not found in keys for " +
+					configRule.tableField +
 					". Used empty String instead.",
 					e);
 		} catch (SQLException e) {
 			anonymizerLogger.severe("SQL error while transforming value \""
-					+ currentValue + "\" (from table " + 
-					tableRules.tableName + "." + columnName + 
+					+ currentValue + "\" (from table " +
+					tableRules.tableName + "." + columnName +
 					") : " + e.getMessage() + ". Using empty String instead.");
 		} catch (TransformationFailedException e) {
 			anonymizerLogger.severe(e.getMessage());
@@ -706,17 +706,24 @@ public class Anonymizer {
 			TransformationTableCreationException,
 			ColumnTypeNotSupportedException, PreparationFailedExection {
 		anonymizerLogger.info("Preparing transformations.");
+		try {
+			createSchemaInTransformataionDatabase();
+		} catch (SQLException e) {
+			anonymizerLogger.warning("Could not create schema in the "
+					+ "transformation database, this might cause the creation "
+					+ "of pseudonym tables or others to fail.");
+		}
 		Multimap<String, Rule> rulesByStrategy = ArrayListMultimap.create();
 		for (Rule rule : config.rules) {
 			if (!scope.tables.contains(rule.tableField.table)) {
-				anonymizerLogger.warning("Table " + rule.tableField.table 
+				anonymizerLogger.warning("Table " + rule.tableField.table
 						+ " not in scope. Skipping dependants and continuing.");
 				continue;
 			}
 			rulesByStrategy.put(rule.strategy, rule);
 			for (TableField dependant : rule.dependants) {
 				if (!scope.tables.contains(dependant.table)){
-					anonymizerLogger.warning("Dependend table " + dependant.table 
+					anonymizerLogger.warning("Dependend table " + dependant.table
 							+ " not in scope. Skipping dependant and continuing.");
 					continue;
 				}
@@ -727,6 +734,15 @@ public class Anonymizer {
 					rulesByStrategy.get(strategyName));
 		}
 		anonymizerLogger.info("Finished: preparing transformations.");
+	}
+
+	private void createSchemaInTransformataionDatabase() throws SQLException {
+		try (ResultSet schemasResult = transformationDB.getMetaData()
+				.getSchemas(null, config.schemaName)) {
+			if (schemasResult.next())
+				return; // schema is already present
+		}
+		SQLHelper.createSchema(config.schemaName, transformationDB);
 	}
 
 	public List<Rule> getRulesFor(String tableName, String columnName)
