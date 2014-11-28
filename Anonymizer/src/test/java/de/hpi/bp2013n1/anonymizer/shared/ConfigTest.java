@@ -22,7 +22,7 @@ package de.hpi.bp2013n1.anonymizer.shared;
 
 
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -50,13 +50,13 @@ public class ConfigTest {
 	public void testReadDependant() throws DependantWithoutRuleException {
 		sut.readNewRule("Table.Column Strategy Addinfo");
 		sut.readDependant("\tTable2.Column2");
-		assertThat(sut.rules.get(sut.rules.size() - 1).dependants, 
+		assertThat(sut.rules.get(sut.rules.size() - 1).dependants,
 				hasItem(new TableField("Table2.Column2")));
 		sut.readDependant("  Table3.c");
-		assertThat(sut.rules.get(sut.rules.size() - 1).dependants, 
+		assertThat(sut.rules.get(sut.rules.size() - 1).dependants,
 				hasItem(new TableField("Table3.c")));
 		sut.readDependant(" Table4.c # comment");
-		assertThat(sut.rules.get(sut.rules.size() - 1).dependants, 
+		assertThat(sut.rules.get(sut.rules.size() - 1).dependants,
 				hasItem(new TableField("Table4.c")));
 	}
 

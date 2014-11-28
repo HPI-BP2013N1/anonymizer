@@ -194,10 +194,10 @@ public class Config {
 			} else {
 				String[] parts = line.split("\\s+", 3);
 				try {
-				// url username and password
-				parameters.url = parts[0];
-				parameters.user = parts[1];
-				parameters.password = parts[2];
+					// url username and password
+					parameters.url = parts[0];
+					parameters.user = parts[1];
+					parameters.password = parts[2];
 				} catch (IndexOutOfBoundsException e) {
 					throw new MalformedException(
 							"invalid database specification: " + line, e);
@@ -216,7 +216,6 @@ public class Config {
 			boolean remove = false;
 			
 			// rule must not be dependent
-			// TODO: this effectively forbids composed rules A <- B <- C, change it (INNO-151)?
 			for (Rule other : rules) {
 				Iterator<TableField> otherDependantsIterator =
 						other.dependants.iterator();
@@ -224,10 +223,14 @@ public class Config {
 					TableField otherDependent = otherDependantsIterator.next();
 					if (rule.tableField.equals(otherDependent)) {
 						if (rule.strategy.equals(other.strategy)) {
-							configLogger.warning(rule.tableField + " is rule, "
-									+ "but same-type dependent of " + other.tableField);
-							remove = true;
+							configLogger.warning(rule.tableField + " is "
+									+ "dependent on " + other.tableField
+									+ "but also has an own rule applying the same "
+									+ "transformation. Changing transformation "
+									+ "of the latter rule to none.");
+							rule.strategy = NO_OP_STRATEGY_KEY;
 						} else {
+							// TODO: this effectively forbids composed rules A <- B <- C, change it (INNO-151)?
 							configLogger.warning(rule.tableField + " is rule, "
 									+ "but conflicting dependent of " + other.tableField);
 							configLogger.info("Removing dependent entry from " + other.tableField + ".");
