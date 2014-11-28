@@ -275,7 +275,7 @@ public class AnalyzerTest {
 		Config newConfig = new Config();
 		newConfig.readFromFile(outputFile.getPath());
 		for (Rule rule : newConfig.rules) {
-			if (!rule.strategy.equals(Analyzer.NO_OP_STRATEGY_KEY))
+			if (!rule.strategy.equals(Config.NO_OP_STRATEGY_KEY))
 				continue;
 			if (rule.dependants.isEmpty())
 				assertThat("There must be no no-op rule without possible or real dependants",

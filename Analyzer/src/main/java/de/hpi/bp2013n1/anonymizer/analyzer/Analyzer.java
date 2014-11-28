@@ -52,7 +52,6 @@ import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
 
 public class Analyzer {
-	static final String NO_OP_STRATEGY_KEY = "";
 	public Connection connection;
 	public Config config;
 	public Scope scope;
@@ -195,7 +194,7 @@ public class Analyzer {
 	private Rule addNoOpRule(TableField tableField) {
 		Rule newRule = new Rule(
 				tableField,
-				NO_OP_STRATEGY_KEY, "");
+				Config.NO_OP_STRATEGY_KEY, "");
 		config.rules.add(newRule);
 		return newRule;
 	}
@@ -238,7 +237,7 @@ public class Analyzer {
 		Iterator<Rule> ruleIterator = config.rules.iterator();
 		while (ruleIterator.hasNext()) {
 			Rule rule = ruleIterator.next();
-			if (!rule.strategy.equals(NO_OP_STRATEGY_KEY))
+			if (!rule.strategy.equals(Config.NO_OP_STRATEGY_KEY))
 				continue;
 			if (rule.dependants.isEmpty() && rule.potentialDependants.isEmpty())
 				ruleIterator.remove();
@@ -341,7 +340,7 @@ public class Analyzer {
 					.loadAndCreate(strategyClassName, stubAnonymizer,
 							connection, null));
 		}
-		strategies.put(NO_OP_STRATEGY_KEY, TransformationStrategy.loadAndCreate(
+		strategies.put(Config.NO_OP_STRATEGY_KEY, TransformationStrategy.loadAndCreate(
 				NoOperationStrategy.class.getName(),
 				stubAnonymizer, connection, null));
 		return strategies;
@@ -380,10 +379,10 @@ public class Analyzer {
 		}
 		writer.write("\n# Table.Field\t\tType\t\tAdditionalInfo\n");
 		for (Rule rule : config.rules) {
-			if (rule.dependants.isEmpty() && rule.strategy.equals(NO_OP_STRATEGY_KEY))
+			if (rule.dependants.isEmpty() && rule.strategy.equals(Config.NO_OP_STRATEGY_KEY))
 				writer.write('#');
 			writer.write(rule.tableField.toString());
-			if (!rule.strategy.equals(NO_OP_STRATEGY_KEY)) {
+			if (!rule.strategy.equals(Config.NO_OP_STRATEGY_KEY)) {
 				writer.write("\t");
 				writer.write(rule.strategy);
 			}

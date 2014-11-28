@@ -43,6 +43,7 @@ import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class Config {
 	private static final Charset CONFIG_CHARSET = StandardCharsets.UTF_8;
+	public static final String NO_OP_STRATEGY_KEY = "";
 	
 	public static class MalformedException extends Exception {
 		private static final long serialVersionUID = 4579175683815643144L;
