@@ -25,6 +25,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Writer;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
@@ -257,5 +258,52 @@ public class Config {
 		}
 		
 		return !critical;
+	}
+
+	public void writeTo(Writer writer) throws IOException {
+		writer.write("# originalDB newDB transformationDB each with username password\n");
+		for (ConnectionParameters parameters : new ConnectionParameters[] {
+				originalDB, destinationDB, transformationDB
+		}) {
+			writer.write(parameters.url);
+			writer.write(" ");
+			writer.write(parameters.user);
+			writer.write(" ");
+			writer.write(parameters.password);
+			writer.write("\n");
+		}
+		writer.write("# schema name and batch size\n");
+		writer.write(schemaName);
+		writer.write(" ");
+		writer.write(Integer.toString(batchSize));
+		writer.write("\n\n");
+		for (Map.Entry<String, String> pair : strategyMapping.entrySet()) {
+			writer.write(String.format("- %s: %s\n", pair.getKey(), pair.getValue()));
+		}
+		writer.write("\n# Table.Field\t\tType\t\tAdditionalInfo\n");
+		for (Rule rule : rules) {
+			if (rule.dependants.isEmpty() && rule.strategy.equals(Config.NO_OP_STRATEGY_KEY))
+				writer.write('#');
+			writer.write(rule.tableField.toString());
+			if (!rule.strategy.equals(Config.NO_OP_STRATEGY_KEY)) {
+				writer.write("\t");
+				writer.write(rule.strategy);
+			}
+			
+			if (!rule.additionalInfo.isEmpty()) {
+				writer.write("\t");
+				writer.write(rule.additionalInfo);
+				writer.write("\n");
+			} else
+				writer.write("\n");
+			
+			for (TableField dependent : rule.dependants) {
+				writer.write("\t" + dependent + "\n");
+			}
+			
+			for (TableField dependent : rule.potentialDependants) {
+				writer.write("\t#" + dependent + "\n");
+			}
+		}
 	}
 }
