@@ -48,7 +48,13 @@ public class AnalyzerDependencyDetectionTest {
 	@Test
 	public void testSimpleDependencies() throws FatalError, SQLException {
 		Config resultConfig = sut.config;
-		String strategyKey = resultConfig.strategyMapping.entrySet().iterator().next().getKey();
+		String strategyKey = null;
+		for (String key : resultConfig.strategyMapping.keySet()) {
+			if (key.equals(Config.NO_OP_STRATEGY_KEY))
+				continue;
+			strategyKey = key;
+			break;
+		}
 		assertThat(resultConfig.rules, hasItem(
 				isLikeRule(
 						is(new TableField("TABLE1.E", resultConfig.schemaName)),
