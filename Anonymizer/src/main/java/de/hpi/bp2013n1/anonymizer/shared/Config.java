@@ -278,6 +278,8 @@ public class Config {
 		writer.write(Integer.toString(batchSize));
 		writer.write("\n\n");
 		for (Map.Entry<String, String> pair : strategyMapping.entrySet()) {
+			if (NO_OP_STRATEGY_KEY.equals(pair.getKey()))
+				continue;
 			writer.write(String.format("- %s: %s\n", pair.getKey(), pair.getValue()));
 		}
 		writer.write("\n# Table.Field\t\tType\t\tAdditionalInfo\n");
