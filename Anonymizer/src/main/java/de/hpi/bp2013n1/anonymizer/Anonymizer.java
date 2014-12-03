@@ -21,6 +21,8 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
+import static com.google.common.base.Preconditions.checkNotNull;
+
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
@@ -203,7 +205,9 @@ public class Anonymizer {
 			ClassCastException {
 		anonymizerLogger.info("Loading transformation strategies.");
 		for (Rule rule : config.rules) {
+			String key = rule.strategy;
 			rule.strategy = config.strategyMapping.get(rule.strategy);
+			checkNotNull(rule.strategy, "No strategy class defined for " + key);
 			if (!strategyByClassName.containsKey(rule.strategy)) {
 				loadAndInstanciateStrategy(rule.strategy);
 			}

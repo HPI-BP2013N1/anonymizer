@@ -39,6 +39,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import de.hpi.bp2013n1.anonymizer.NoOperationStrategy;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class Config {
@@ -86,6 +87,10 @@ public class Config {
 	public Map<String, String> strategyMapping = new HashMap<>();
 	
 	private static Logger configLogger = Logger.getLogger(Config.class.getName());
+	
+	public Config() {
+		strategyMapping.put(NO_OP_STRATEGY_KEY, NoOperationStrategy.class.getName());
+	}
 	
 	public static Config fromFile(String fileName) throws DependantWithoutRuleException, IOException, MalformedException {
 		Config config = new Config();

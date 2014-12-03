@@ -32,3 +32,7 @@ PRODUCTSALES	keep	SALEID='1'
 PRODUCTSALES.PRODUCTID	U
 DISTRIBUTIONTEST1.A	U	REQUIRE MIN 2
 DISTRIBUTIONTEST2.A	U	require at least 75%
+
+# the following rule is redundant but should not hurt (cause crashes)
+VISITOR.SURNAME
+	VISIT.VISITORSURNAME

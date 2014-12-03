@@ -33,6 +33,7 @@ import org.junit.Test;
 
 import com.google.common.collect.Lists;
 
+import de.hpi.bp2013n1.anonymizer.NoOperationStrategy;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
@@ -105,7 +106,7 @@ public class ConfigTest {
 		assertThat(sut.batchSize, is(1000));
 		assertThat(sut.strategyMapping, hasEntry("S1", "strategy1"));
 		assertThat(sut.strategyMapping, hasEntry("S2", "strategy2"));
-		assertThat(sut.strategyMapping.entrySet(), hasSize(2));
+		assertThat(sut.strategyMapping, hasEntry(Config.NO_OP_STRATEGY_KEY, NoOperationStrategy.class.getName()));
 		assertThat(
 				sut.rules,
 				contains(
