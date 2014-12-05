@@ -174,9 +174,11 @@ public class Anonymizer {
 				} catch (TransformationKeyCreationException e) {
 					anonymizerLogger.severe("Could not create pseudonyms: "
 							+ e.getMessage());
+					throw new FatalError(e);
 				} catch (FetchPseudonymsFailedException e) {
 					anonymizerLogger.severe("Could not retrieve pseudonyms: "
 							+ e.getMessage());
+					throw new FatalError(e);
 				} catch (ColumnTypeNotSupportedException e) {
 					anonymizerLogger.severe("An anonymization strategy does not "
 							+ "support the type of column to which the strategy "
