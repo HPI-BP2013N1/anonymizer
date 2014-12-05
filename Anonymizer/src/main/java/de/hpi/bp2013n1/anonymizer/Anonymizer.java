@@ -454,6 +454,13 @@ public class Anonymizer {
 
 			copyAndAnonymizeRows(tableRuleMap, qualifiedTableName, rsMeta,
 					rowCount, rs);
+
+			try {
+				anonymizedDatabase.commit();
+			} catch (SQLException e) {
+				anonymizerLogger.warning("Commit operation concluding table "
+						+ qualifiedTableName + " failed.");
+			}
 		} catch (SQLException e) {
 			anonymizerLogger.severe("Could not query table "
 					+ qualifiedTableName + ": " + e.getMessage());
