@@ -117,7 +117,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			}
 			return existingPseudonyms;
 		}
-
+		
 		@SuppressWarnings("unchecked")
 		public <T> T fetchOne(T originalValue) throws SQLException, TransformationKeyNotFoundException {
 			try (PreparedStatement selectStatement = database.prepareStatement(
@@ -264,7 +264,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		return distinctValuesQueryBuilder.toString();
 	}
 
-	private TableField getPseudonymsTable(TableField transformedField) {
+	public static TableField getPseudonymsTable(TableField transformedField) {
 		// TODO: move code from TableField.translationTableName to PseudonymizeStrategy
 		return new TableField(transformedField.translationTableName(), null,
 				transformedField.schema);
