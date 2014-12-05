@@ -21,7 +21,7 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -34,11 +34,15 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Logger;
 
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import de.hpi.bp2013n1.anonymizer.db.ColumnDatatypeDescription;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -56,8 +60,111 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	char[] shuffledNumbersPool = shuffledNumberArray();
 	HashMap<String, TreeMap<String, String>> cachedTransformations;
 	PreparedStatement newDBStmt;
+	
+	public static class PseudonymsTableProxy {
+		private TableField tableSpec;
+		private Connection database;
+		private ColumnDatatypeDescription columnType;
+		static String OLDVALUE = "OLDVALUE";
+		static String NEWVALUE = "NEWVALUE";
 
-	public PseudonymizeStrategy(Anonymizer anonymizer, Connection origDB, 
+		public PseudonymsTableProxy(TableField pseudonymsTable,
+				ColumnDatatypeDescription columnType, Connection database) {
+			checkArgument(!Strings.isNullOrEmpty(pseudonymsTable.table));
+			checkArgument(!Strings.isNullOrEmpty(pseudonymsTable.schema));
+			checkArgument(SQLTypes.isValidType(columnType.type));
+			checkArgument(database != null);
+			this.tableSpec = pseudonymsTable;
+			this.columnType = columnType;
+			this.database = database;
+		}
+		
+		public boolean exists() throws SQLException {
+			try (ResultSet tableResult = database.getMetaData().getTables(
+					null, tableSpec.schema, tableSpec.table, new String[] { "TABLE" })) {
+				return tableResult.next();
+			}
+		}
+
+		public void create() throws TransformationTableCreationException {
+			try (Statement createTableStatement = database.createStatement()) {
+				createTableStatement.executeUpdate("CREATE TABLE "
+						+ tableSpec.schemaTable() + " "
+						+ "( " + OLDVALUE + " " + SQLTypes.getTypeName(columnType.type) + " NOT NULL, "
+						+ NEWVALUE + " " + SQLTypes.getTypeName(columnType.type) + " NOT NULL, "
+						+ "PRIMARY KEY(" + OLDVALUE + "))");
+			} catch (SQLException e) {
+				throw new TransformationTableCreationException(
+						"Creation of pseudonyms table failed.");
+			}
+		}
+
+		@SuppressWarnings("unchecked")
+		public <T> Map<T, T> fetch() throws SQLException {
+			HashMap<T, T> existingPseudonyms = new HashMap<>();
+			try (PreparedStatement selectExistingPseudonymsStatement =
+					database.prepareStatement(
+							"SELECT " + OLDVALUE + ", " + NEWVALUE + " FROM "
+									+ tableSpec.schemaTable())) {
+				try (ResultSet existingPseudonymsResultSet =
+						selectExistingPseudonymsStatement.executeQuery()) {
+					while (existingPseudonymsResultSet.next()) {
+						existingPseudonyms.put(
+								(T) existingPseudonymsResultSet.getObject(OLDVALUE),
+								(T) existingPseudonymsResultSet.getObject(NEWVALUE));
+					}
+				}
+			}
+			return existingPseudonyms;
+		}
+		
+		@SuppressWarnings("unchecked")
+		public <T> T fetchOne(T originalValue) throws SQLException, TransformationKeyNotFoundException {
+			try (PreparedStatement selectStatement = database.prepareStatement(
+					"SELECT " + NEWVALUE + " FROM " + tableSpec.schemaTable()
+					+ " WHERE " + OLDVALUE + " = ?")) {
+				selectStatement.setObject(1, originalValue);
+				try (ResultSet resultSet = selectStatement.executeQuery()) {
+					if (!resultSet.next())
+						throw new TransformationKeyNotFoundException(
+								"Could not find pseudonym for " + originalValue
+								+ " in pseudonyms table " + tableSpec.schemaTable());
+					return (T) resultSet.getObject(1);
+				}
+			}
+		}
+
+		public <T1, T2> void insertNewPseudonyms(Map<T1, T2> newMapping)
+				throws TransformationKeyCreationException, SQLException {
+			int maximalLength = columnType.length;
+			String insertQuery = "INSERT INTO " + tableSpec.schemaTable()
+					+ " VALUES (?,?)";
+			try (PreparedStatement newDBStmt = database.prepareStatement(insertQuery)) {
+				for (T1 newValue : newMapping.keySet()) {
+					if (newValue == null) {
+						continue;
+					}
+					T2 pseudonym = newMapping.get(newValue);
+					if (newValue instanceof String
+							&& newValue.toString().length() > maximalLength)
+						throw new TransformationKeyCreationException(
+								"Could not create keys for " + tableSpec.schemaTable()
+								+ ". Original value too long. Check config File.");
+					newDBStmt.setObject(1, newValue);
+					newDBStmt.setObject(2, pseudonym);
+					newDBStmt.addBatch();
+				}
+				newDBStmt.executeBatch();
+			}
+			database.commit();
+		}
+
+		public ColumnDatatypeDescription getColumnType() {
+			return columnType;
+		}
+	}
+
+	public PseudonymizeStrategy(Anonymizer anonymizer, Connection origDB,
 			Connection translateDB) throws SQLException {
 		super(anonymizer, origDB, translateDB);
 		cachedTransformations = new HashMap<>();
@@ -76,88 +183,46 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			ColumnTypeNotSupportedException {
 		TableField originTableField = rule.tableField;
 		ColumnDatatypeDescription originTableFieldDatatype;
+		PseudonymsTableProxy pseudonymsTable;
 		try {
-			originTableFieldDatatype = 
+			originTableFieldDatatype =
 				ColumnDatatypeDescription.fromMetaData(
-						originTableField, 
+						originTableField,
 						originalDatabase);
-			if (!translationTableExists(originTableField)) {
-				createTranslationTable(originTableField.schemaQualifiedTranslationTableName(), 
-						originTableFieldDatatype);
+			pseudonymsTable = new PseudonymsTableProxy(
+					getPseudonymsTable(originTableField),
+					originTableFieldDatatype, transformationDatabase);
+			if (!pseudonymsTable.exists()) {
+				pseudonymsTable.create();
 			}
 		} catch (SQLException e1) {
-			throw new TransformationTableCreationException(e1.getMessage());
+			throw new TransformationTableCreationException("Could not prepare "
+					+ "the creation of a pseudonyms table due to SQL errors", e1);
 		}
 		try {
-			StringBuilder distinctValuesQueryBuilder = new StringBuilder();
-			String distinctValuesQueryForOneColumn = 
-					"(select distinct %s distinctValues from %s)";
-			distinctValuesQueryBuilder.append(String.format(
-					distinctValuesQueryForOneColumn,
-					originTableField.column, originTableField.schemaTable()));
-			
-			for ( TableField dependant : rule.dependants ){
-				distinctValuesQueryBuilder.append(" union ");
-				distinctValuesQueryBuilder.append(String.format(
-						distinctValuesQueryForOneColumn,
-						dependant.column, dependant.schemaTable()));
-			}
-			
-			String distinctValuesQuery = distinctValuesQueryBuilder.toString();
+			String distinctValuesQuery = distinctValuesQuery(rule,
+					originTableField);
 			String countDistinctValuesQuery = String.format(
-					"select count (distinctValues) from (%s)", 
+					"select count (distinctValues) from (%s)",
 					distinctValuesQuery);
 
 			int numberOfDistinctValues;
 			try (Statement statement = originalDatabase.createStatement();
-					ResultSet countDistinctValuesResultSet = 
+					ResultSet countDistinctValuesResultSet =
 							statement.executeQuery(countDistinctValuesQuery)) {
 				countDistinctValuesResultSet.next();
 				numberOfDistinctValues = countDistinctValuesResultSet.getInt(1);
 			}
 			
-			HashMap<Object, Object> existingPseudonyms = fetchExistingPseudonyms(
-					originTableField.schemaQualifiedTranslationTableName());
-
-			HashSet<Object> newValues = new HashSet<Object>();
-			try (Statement statement = originalDatabase.createStatement();
-					ResultSet distinctValuesResultSet = 
-							statement.executeQuery(distinctValuesQuery)) {
-				while (distinctValuesResultSet.next()) {
-					Object originalValue = distinctValuesResultSet.getObject(1);
-					if (!existingPseudonyms.containsKey(originalValue)) {
-						newValues.add(originalValue);
-					}
-				}
-			}
-
-			ArrayList<String> randomValues = createNewPseudonyms(rule,
-					originTableFieldDatatype, numberOfDistinctValues);
+			Map<Object, Object> existingPseudonyms = pseudonymsTable.fetch();
+			Set<Object> newValues = determinateNewValuesInDatabase(existingPseudonyms, distinctValuesQuery);
+			List<String> randomValues = new PseudonymGenerator().
+					createNewPseudonyms(rule, originTableFieldDatatype, numberOfDistinctValues);
 			randomValues.removeAll(existingPseudonyms.values());
 
-			String insertQuery = "INSERT INTO " + originTableField.schemaQualifiedTranslationTableName() 
-					+ " VALUES (?,?)";
-			newDBStmt = transformationDatabase.prepareStatement(insertQuery);
-
-			Random random = new Random();
-			int maximalLength = originTableFieldDatatype.length;
-			for (Object newValue : newValues) {
-				if (newValue == null) {
-					continue;
-				}
-				String pseudonym = randomValues.remove(
-						random.nextInt(randomValues.size()));
-				if (newValue.toString().length() > maximalLength)
-					throw new TransformationKeyCreationException(
-							"Could not create keys for " 
-									+ originTableField.schemaQualifiedTranslationTableName() 
-									+ ". Original value too long. Check config File.");
-				newDBStmt.setObject(1, newValue);
-				newDBStmt.setObject(2, pseudonym);
-				newDBStmt.addBatch();
-			}
-			newDBStmt.executeBatch();
-			transformationDatabase.commit();
+			Map<Object, String> newMapping =
+					PseudonymGenerator.createNewRandomMap(newValues, randomValues);
+			pseudonymsTable.insertNewPseudonyms(newMapping);
 		} catch (SQLException e) {
 			e.printStackTrace();
 			while ((e = e.getNextException()) != null)
@@ -165,132 +230,143 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		}
 	}
 
-	private ArrayList<String> createNewPseudonyms(Rule rule,
-			ColumnDatatypeDescription originTableFieldDatatype,
-			int numberOfDistinctValues) throws ColumnTypeNotSupportedException {
-		ArrayList<String> randomValues = null;
-		int requiredLength = (int) Math.ceil((Math.log(numberOfDistinctValues) 
-				/ Math.log(NUMBER_OF_AVAILABLE_CHARS)));
-		switch (originTableFieldDatatype.type) {
-		case Types.CHAR:
-		case Types.VARCHAR:
-		case Types.NCHAR:
-		case Types.NVARCHAR:
-		case Types.LONGVARCHAR:
-		case Types.LONGNVARCHAR:
-			randomValues = createRandomPseudonyms(numberOfDistinctValues,
-					requiredLength, rule.additionalInfo);
-			break;
-		case Types.TINYINT:
-		case Types.SMALLINT:
-		case Types.INTEGER:
-		case Types.BIGINT:
-			randomValues = createIntegers(numberOfDistinctValues, originTableFieldDatatype.length);
-			break;
-		default:
-			throw new ColumnTypeNotSupportedException(
-					"Column type is not supported for pseudonymization: " 
-							+ originTableFieldDatatype);
-		}
-		return randomValues;
-	}
-
-	private HashMap<Object, Object>
-	fetchExistingPseudonyms(String translationTableName) throws SQLException {
-		HashMap<Object, Object> existingPseudonyms = new HashMap<>();
-		try (PreparedStatement selectExistingPseudonymsStatement = 
-				transformationDatabase.prepareStatement(
-						"SELECT OLDVALUE, NEWVALUE FROM " 
-								+ translationTableName)) {
-			try (ResultSet existingPseudonymsResultSet = 
-					selectExistingPseudonymsStatement.executeQuery()) {
-				while (existingPseudonymsResultSet.next()) {
-					existingPseudonyms.put(
-							existingPseudonymsResultSet.getObject("OLDVALUE"),
-							existingPseudonymsResultSet.getObject("NEWVALUE"));
+	private Set<Object> determinateNewValuesInDatabase(
+			Map<Object, Object> existingPseudonyms, String distinctValuesQuery) throws SQLException {
+		HashSet<Object> newValues = new HashSet<Object>();
+		try (Statement statement = originalDatabase.createStatement();
+				ResultSet distinctValuesResultSet =
+						statement.executeQuery(distinctValuesQuery)) {
+			while (distinctValuesResultSet.next()) {
+				Object originalValue = distinctValuesResultSet.getObject(1);
+				if (!existingPseudonyms.containsKey(originalValue)) {
+					newValues.add(originalValue);
 				}
 			}
 		}
-		return existingPseudonyms;
+		return newValues;
 	}
 
-	private boolean translationTableExists(TableField translatedField) 
-			throws SQLException {
-		ResultSet tableResultSet = 
-				transformationDatabase.getMetaData().getTables(
-						null,
-						translatedField.schema,
-						translatedField.translationTableName(),
-						new String[] { "TABLE" });
-		try {
-			return tableResultSet.next(); // next returns true if a row is available
-		} finally {
-			tableResultSet.close();
+	private String distinctValuesQuery(Rule rule, TableField originTableField) {
+		StringBuilder distinctValuesQueryBuilder = new StringBuilder();
+		String distinctValuesQueryForOneColumn =
+				"(select distinct %s distinctValues from %s)";
+		distinctValuesQueryBuilder.append(String.format(
+				distinctValuesQueryForOneColumn,
+				originTableField.column, originTableField.schemaTable()));
+		
+		for ( TableField dependant : rule.dependants ){
+			distinctValuesQueryBuilder.append(" union ");
+			distinctValuesQueryBuilder.append(String.format(
+					distinctValuesQueryForOneColumn,
+					dependant.column, dependant.schemaTable()));
 		}
+		
+		return distinctValuesQueryBuilder.toString();
 	}
 
-	private void createTranslationTable(String translationTableName, 
-			ColumnDatatypeDescription fieldDatatype)
-					throws TransformationTableCreationException {
-		try (Statement createTableStatement = transformationDatabase.createStatement()) {
-			createTableStatement.execute("CREATE TABLE " 
-					+ translationTableName + " "
-					+ "(oldValue " + fieldDatatype + " NOT NULL, "
-					+ "newValue " + fieldDatatype + " NOT NULL, "
-					+ "PRIMARY KEY(oldvalue))");
-		} catch (SQLException e) {
-			throw new TransformationTableCreationException("Creating translation keys failed.");
-		}
+	public static TableField getPseudonymsTable(TableField transformedField) {
+		// TODO: move code from TableField.translationTableName to PseudonymizeStrategy
+		return new TableField(transformedField.translationTableName(), null,
+				transformedField.schema);
 	}
+	
+	public static class PseudonymGenerator {
+		private char[] shuffledCharPool = shuffledChars();
+		private char[] shuffledNumbersPool = shuffledNumberArray();
 
-	public ArrayList<String> createRandomPseudonyms(int cnt, int length, String prefix) {
-		checkArgument(cnt <= Math.pow(NUMBER_OF_AVAILABLE_CHARS, length),
-				"Cannot produce %d pseudonyms of length %d", cnt, length);
-		ArrayList<String> pseudonyms = new ArrayList<String>();
-		for (int i = 0; i < cnt; i++) {
-			pseudonyms.add(createPseudonym(i, length, prefix));
+		public List<String> createNewPseudonyms(Rule rule,
+				ColumnDatatypeDescription originTableFieldDatatype,
+				int numberOfDistinctValues) throws ColumnTypeNotSupportedException {
+			ArrayList<String> randomValues = null;
+			int requiredLength = (int) Math.ceil((Math.log(numberOfDistinctValues)
+					/ Math.log(NUMBER_OF_AVAILABLE_CHARS)));
+			switch (originTableFieldDatatype.type) {
+			case Types.CHAR:
+			case Types.VARCHAR:
+			case Types.NCHAR:
+			case Types.NVARCHAR:
+			case Types.LONGVARCHAR:
+			case Types.LONGNVARCHAR:
+				randomValues = createRandomPseudonyms(numberOfDistinctValues,
+						requiredLength, rule.additionalInfo);
+				break;
+			case Types.TINYINT:
+			case Types.SMALLINT:
+			case Types.INTEGER:
+			case Types.BIGINT:
+				randomValues = createIntegers(numberOfDistinctValues, originTableFieldDatatype.length);
+				break;
+			default:
+				throw new ColumnTypeNotSupportedException(
+						"Column type is not supported for pseudonymization: "
+								+ originTableFieldDatatype);
+			}
+			return randomValues;
 		}
-		return pseudonyms;
-	}
 
-	public ArrayList<String> createIntegers(int cnt, int length) {
-		ArrayList<String> values = new ArrayList<String>();
-		for (int i = 0; i < cnt; i++) {
-			values.add(createInteger(i, length));
+		public ArrayList<String> createRandomPseudonyms(int cnt, int length, String prefix) {
+			checkArgument(cnt <= Math.pow(NUMBER_OF_AVAILABLE_CHARS, length),
+					"Cannot produce %d pseudonyms of length %d", cnt, length);
+			ArrayList<String> pseudonyms = new ArrayList<String>();
+			for (int i = 0; i < cnt; i++) {
+				pseudonyms.add(createPseudonym(i, length, prefix));
+			}
+			return pseudonyms;
 		}
-		return values;
-	}
 
-	public String createPseudonym(int seed, int length, String prefix) {
-		// The following does not look really random and if you put the
-		// generated values with increasing offset into a List, you will see
-		// a pattern. The actual randomness comes from the shuffledCharPool.
-		// This algorithm makes sure that for NUMBER_OF_AVAILABLE_CHARS^length
-		// invocations with incremented offsets each time a unique pseudonym
-		// is returned.
-		int offset = seed;
-		char[] value = new char[length];
-		for (int i = length - 1; i >= 0; i--) {
-			value[i] = shuffledCharPool[(offset % NUMBER_OF_AVAILABLE_CHARS)];
-			offset = offset / NUMBER_OF_AVAILABLE_CHARS;
+		public ArrayList<String> createIntegers(int cnt, int length) {
+			ArrayList<String> values = new ArrayList<String>();
+			for (int i = 0; i < cnt; i++) {
+				values.add(createInteger(i, length));
+			}
+			return values;
 		}
-		return prefix + String.copyValueOf(value);
-	}
 
-	public String createInteger(int seed, int length) {
-		int offset = seed;
-		char[] value = new char[length];
-		for (int i = 0; i < length; i++) {
-			value[i] = shuffledNumbersPool[(offset % 10)];
-			offset = offset / 10;
+		public String createPseudonym(int seed, int length, String prefix) {
+			// The following does not look really random and if you put the
+			// generated values with increasing offset into a List, you will see
+			// a pattern. The actual randomness comes from the shuffledCharPool.
+			// This algorithm makes sure that for NUMBER_OF_AVAILABLE_CHARS^length
+			// invocations with incremented offsets each time a unique pseudonym
+			// is returned.
+			int offset = seed;
+			char[] value = new char[length];
+			for (int i = length - 1; i >= 0; i--) {
+				value[i] = shuffledCharPool[(offset % NUMBER_OF_AVAILABLE_CHARS)];
+				offset = offset / NUMBER_OF_AVAILABLE_CHARS;
+			}
+			return prefix + String.copyValueOf(value);
 		}
-		return String.copyValueOf(value);
+
+		public String createInteger(int seed, int length) {
+			int offset = seed;
+			char[] value = new char[length];
+			for (int i = 0; i < length; i++) {
+				value[i] = shuffledNumbersPool[(offset % 10)];
+				offset = offset / 10;
+			}
+			return String.copyValueOf(value);
+		}
+		
+		public static <T1, T2> Map<T1, T2> createNewRandomMap(Set<T1> newValues,
+				List<T2> randomValues) {
+			Map<T1, T2> newMapping = Maps.newHashMap();
+			Random random = new Random();
+			for (T1 newValue : newValues) {
+				if (newValue == null)
+					continue;
+				T2 pseudonym = randomValues.remove(random.nextInt(
+						randomValues.size()));
+				newMapping.put(newValue, pseudonym);
+			}
+			return newMapping;
+		}
 	}
 
 	@Override
-	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row) 
+	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row)
 			throws SQLException, TransformationKeyNotFoundException {
-		checkArgument(oldValue instanceof String || oldValue == null, 
+		checkArgument(oldValue instanceof String || oldValue == null,
 				getClass() + " should transform "
 				+ oldValue + " but can only operate on Strings.");
 		// TODO: check if this works out because we broke the assumption that
@@ -299,7 +375,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	}
 	
 
-	public String transform(String oldValue, Rule rule, ResultSetRowReader row) 
+	public String transform(String oldValue, Rule rule, ResultSetRowReader row)
 			throws SQLException, TransformationKeyNotFoundException {
 		if (oldValue == null)
 			return null;
@@ -312,15 +388,15 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		
 		if (result != null)
 			return result;
-		else {	
+		else {
 			throw new TransformationKeyNotFoundException("Value not found");
 		}
 	}
 
 	/**
-	 * Attention: removes elements from given argument  
+	 * Attention: removes elements from given argument
 	 * @param translationTableNames
-	 * @throws SQLException 
+	 * @throws SQLException
 	 */
 	public void fetchTranslations(ArrayList<String> translationTableNames)
 			throws SQLException {
@@ -335,7 +411,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 
 				while (cacheSet.next()) {
 					cachedTranslations.put(
-							cacheSet.getString("oldValue").replaceAll(" +$", ""), 
+							cacheSet.getString("oldValue").replaceAll(" +$", ""),
 							cacheSet.getString("newValue"));
 				}
 			}
@@ -344,6 +420,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 
 	@Override
 	public void prepareTableTransformation(TableRuleMap affectedColumnEntries) throws SQLException {
+		// TODO: refactor this with PseudonymsTableProxy
 		fetchTranslations(collectTranslationTableNamesFor(affectedColumnEntries));
 	}
 
@@ -374,7 +451,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 				logger.severe("Prefix only supported for CHARACTER and VARCHAR fields. Skipping");
 				return false;
 			}
-			if (rule.additionalInfo.length() > length) {						
+			if (rule.additionalInfo.length() > length) {
 				logger.severe("Provided default value is longer than maximum field length of " + length + ". Skipping");
 				return false;
 			}
@@ -384,21 +461,21 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 						selectDistinctValuesFromParentAndDependentColumns(rule))) {
 				rs.next();
 				int count = rs.getInt(1);
-				if (rule.additionalInfo.length() 
-						+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS)) 
+				if (rule.additionalInfo.length()
+						+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS))
 						> length) {
 					logger.severe("Provided prefix is too long to pseudonymize. "
-							+ "prefix: " + rule.additionalInfo.length() 
-							+ " required: " 
-							+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS)) 
+							+ "prefix: " + rule.additionalInfo.length()
+							+ " required: "
+							+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS))
 							+ " allowed: " + length + ". Skipping");
 					return false;
 				}
 			} catch (SQLException e) {
 				throw new RuleValidationException(
-						"Could not count distinct values in column " 
-								+ rule.tableField.schemaTable() + "." 
-								+ rule.tableField.column 
+						"Could not count distinct values in column "
+								+ rule.tableField.schemaTable() + "."
+								+ rule.tableField.column
 								+ ": " + e.getMessage());
 			}
 		}
@@ -406,6 +483,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	}
 
 	private String selectDistinctValuesFromParentAndDependentColumns(Rule rule) {
+		// TODO: why is distinctValuesQuery(rule, originTableField) not used here?
 		TableField tableField = rule.tableField;
 		// rename columns to onlyDistinctValuesXYZ so you can make a union
 		StringBuilder query = new StringBuilder(

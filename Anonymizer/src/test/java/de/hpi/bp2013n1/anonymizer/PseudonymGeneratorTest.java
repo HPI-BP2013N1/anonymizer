@@ -22,10 +22,8 @@ package de.hpi.bp2013n1.anonymizer;
 
 
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -33,16 +31,15 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
-import de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy;
+import de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy.PseudonymGenerator;
 
-public class PseudonymizeStrategyTest {
+public class PseudonymGeneratorTest {
 
-	private PseudonymizeStrategy sut;
+	private PseudonymGenerator sut;
 
 	@Before
 	public void createStrategyObject() throws Exception {
-		Connection stubDB = DriverManager.getConnection("jdbc:h2:mem:");
-		sut = new PseudonymizeStrategy(null, stubDB, stubDB);
+		sut = new PseudonymizeStrategy.PseudonymGenerator();
 	}
 
 	@Test
@@ -71,8 +68,7 @@ public class PseudonymizeStrategyTest {
 
 	@Test
 	public void testCreateRandomIntegers() {
-		Collection<String> randomIntegerStrings = 
-				sut.createIntegers(100, 2);
+		Collection<String> randomIntegerStrings = sut.createIntegers(100, 2);
 		assertThat(randomIntegerStrings, hasSize(100));
 		assertThat(new HashSet<>(randomIntegerStrings), hasSize(100));
 		for (String intStr : randomIntegerStrings)

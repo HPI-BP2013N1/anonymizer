@@ -7,6 +7,8 @@ import com.google.common.collect.Sets;
 
 public class SQLTypes {
 	
+	public static final String UNKNOWN_TYPE = "?";
+
 	static Set<Integer> characterTypes = Sets.newHashSet(Types.CHAR,
 			Types.VARCHAR, Types.LONGVARCHAR, Types.NCHAR, Types.NVARCHAR,
 			Types.LONGNVARCHAR);
@@ -103,6 +105,10 @@ public class SQLTypes {
 	        return "SQLXML";
 	    }
 	
-	    return "?";
+	    return UNKNOWN_TYPE;
+	}
+
+	public static boolean isValidType(int dataType) {
+		return getTypeName(dataType) != UNKNOWN_TYPE;
 	}
 }

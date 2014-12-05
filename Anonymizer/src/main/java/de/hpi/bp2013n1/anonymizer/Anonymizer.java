@@ -176,9 +176,11 @@ public class Anonymizer {
 				} catch (TransformationKeyCreationException e) {
 					anonymizerLogger.severe("Could not create pseudonyms: "
 							+ e.getMessage());
+					throw new FatalError(e);
 				} catch (FetchPseudonymsFailedException e) {
 					anonymizerLogger.severe("Could not retrieve pseudonyms: "
 							+ e.getMessage());
+					throw new FatalError(e);
 				} catch (ColumnTypeNotSupportedException e) {
 					anonymizerLogger.severe("An anonymization strategy does not "
 							+ "support the type of column to which the strategy "
@@ -448,7 +450,7 @@ public class Anonymizer {
 					strategy.prepareTableTransformation(tableRuleMapForStrategy);
 				}
 				
-			} catch (SQLException e) {
+			} catch (SQLException | FetchPseudonymsFailedException e) {
 				anonymizerLogger.warning("Fetching rows failed: " + e.getMessage());
 				e.printStackTrace();
 				return;
@@ -456,6 +458,13 @@ public class Anonymizer {
 
 			copyAndAnonymizeRows(tableRuleMap, qualifiedTableName, rsMeta,
 					rowCount, rs);
+
+			try {
+				anonymizedDatabase.commit();
+			} catch (SQLException e) {
+				anonymizerLogger.warning("Commit operation concluding table "
+						+ qualifiedTableName + " failed.");
+			}
 		} catch (SQLException e) {
 			anonymizerLogger.severe("Could not query table "
 					+ qualifiedTableName + ": " + e.getMessage());
