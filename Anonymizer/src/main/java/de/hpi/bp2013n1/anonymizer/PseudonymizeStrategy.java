@@ -89,7 +89,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		public void create() throws TransformationTableCreationException {
 			try (Statement createTableStatement = database.createStatement()) {
 				createTableStatement.executeUpdate("CREATE TABLE "
-						+ tableSpec.table + " "
+						+ tableSpec.schemaTable() + " "
 						+ "( " + OLDVALUE + " " + SQLTypes.getTypeName(columnType.type) + " NOT NULL, "
 						+ NEWVALUE + " " + SQLTypes.getTypeName(columnType.type) + " NOT NULL, "
 						+ "PRIMARY KEY(" + OLDVALUE + "))");
