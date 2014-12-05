@@ -118,6 +118,22 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			return existingPseudonyms;
 		}
 
+		@SuppressWarnings("unchecked")
+		public <T> T fetchOne(T originalValue) throws SQLException, TransformationKeyNotFoundException {
+			try (PreparedStatement selectStatement = database.prepareStatement(
+					"SELECT " + NEWVALUE + " FROM " + tableSpec.schemaTable()
+					+ " WHERE " + OLDVALUE + " = ?")) {
+				selectStatement.setObject(1, originalValue);
+				try (ResultSet resultSet = selectStatement.executeQuery()) {
+					if (!resultSet.next())
+						throw new TransformationKeyNotFoundException(
+								"Could not find pseudonym for " + originalValue
+								+ " in pseudonyms table " + tableSpec.schemaTable());
+					return (T) resultSet.getObject(1);
+				}
+			}
+		}
+
 		public <T1, T2> void insertNewPseudonyms(Map<T1, T2> newMapping)
 				throws TransformationKeyCreationException, SQLException {
 			int maximalLength = columnType.length;
