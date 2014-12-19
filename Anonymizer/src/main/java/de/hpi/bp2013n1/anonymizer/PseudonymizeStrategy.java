@@ -95,7 +95,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 						+ "PRIMARY KEY(" + OLDVALUE + "))");
 			} catch (SQLException e) {
 				throw new TransformationTableCreationException(
-						"Creation of pseudonyms table failed.");
+						"Creation of pseudonyms table " + tableSpec.schemaTable()
+						+ " failed.", e);
 			}
 		}
 

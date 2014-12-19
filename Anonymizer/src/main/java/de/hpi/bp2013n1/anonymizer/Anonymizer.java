@@ -24,6 +24,8 @@ package de.hpi.bp2013n1.anonymizer;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
@@ -170,27 +172,25 @@ public class Anonymizer {
 				try {
 					anonymize();
 				} catch (TransformationTableCreationException e) {
-					anonymizerLogger.severe("Could not create pseudonyms table: "
-							+ e.getMessage());
+					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
 				} catch (TransformationKeyCreationException e) {
-					anonymizerLogger.severe("Could not create pseudonyms: "
-							+ e.getMessage());
+					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
 				} catch (FetchPseudonymsFailedException e) {
-					anonymizerLogger.severe("Could not retrieve pseudonyms: "
-							+ e.getMessage());
+					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
 				} catch (ColumnTypeNotSupportedException e) {
 					anonymizerLogger.severe("An anonymization strategy does not "
 							+ "support the type of column to which the strategy "
 							+ "should be applied: " + e.getMessage());
+					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
 				} catch (PreparationFailedExection e) {
-					anonymizerLogger.severe(e.getMessage());
+					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
 				} catch (TableNotFoundException e) {
-					anonymizerLogger.severe(e.getMessage());
+					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
 				}
 		} catch (SQLException e) {
@@ -199,6 +199,21 @@ public class Anonymizer {
 					+ e.getMessage());
 			throw new FatalError(e);
 		}
+	}
+
+	private void logSevereErrorAndCausesWithInnerStackTrace(Throwable t) {
+		Throwable last = t;
+		anonymizerLogger.severe(t.getMessage());
+		while (t != null) {
+			anonymizerLogger.severe("caused by: " + t.getMessage());
+			last = t;
+			t = t.getCause();
+		}
+		StringWriter sw = new StringWriter();
+		PrintWriter pw = new PrintWriter(sw);
+		last.printStackTrace(pw);
+		anonymizerLogger.severe("stack trace of inner exception: "
+				+ sw.toString());
 	}
 	
 	public void loadAndInstantiateStrategies() throws ClassNotFoundException,
