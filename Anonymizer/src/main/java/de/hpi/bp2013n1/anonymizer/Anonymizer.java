@@ -214,6 +214,15 @@ public class Anonymizer {
 		last.printStackTrace(pw);
 		anonymizerLogger.severe("stack trace of inner exception: "
 				+ sw.toString());
+		if (last instanceof SQLException) {
+			SQLException e = (SQLException) last;
+			e = e.getNextException();
+			anonymizerLogger.severe("SQLException detected, exception chain follows");
+			while (e != null) {
+				anonymizerLogger.severe(e.getMessage());
+				e = e.getNextException();
+			}
+		}
 	}
 	
 	public void loadAndInstantiateStrategies() throws ClassNotFoundException,
