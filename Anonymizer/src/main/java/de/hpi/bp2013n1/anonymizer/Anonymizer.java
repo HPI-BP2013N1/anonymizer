@@ -743,7 +743,7 @@ public class Anonymizer {
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
 			ColumnTypeNotSupportedException, PreparationFailedExection {
-		anonymizerLogger.info("Preparing transformations.");
+		anonymizerLogger.info("Setting up transformations.");
 		try {
 			createSchemaInTransformataionDatabase();
 		} catch (SQLException e) {
@@ -768,10 +768,11 @@ public class Anonymizer {
 			}
 		}
 		for (String strategyName : rulesByStrategy.keySet()) {
+			anonymizerLogger.info("Setting up transformations for " + strategyName);
 			strategyByClassName.get(strategyName).setUpTransformation(
 					rulesByStrategy.get(strategyName));
 		}
-		anonymizerLogger.info("Finished: preparing transformations.");
+		anonymizerLogger.info("Finished: setting up transformations.");
 	}
 
 	private void createSchemaInTransformataionDatabase() throws SQLException {
