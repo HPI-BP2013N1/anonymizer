@@ -40,14 +40,18 @@ public class ColumnDatatypeDescription {
 	
 	@Override
 	public String toString() {
+		return toSQLString();
+	}
+	
+	public String toSQLString() {
 		return SQLTypes.getTypeName(type) + "(" + length + ")";
 	}
 
 	public static ColumnDatatypeDescription fromMetaData(
-			TableField tableField, Connection connection) 
+			TableField tableField, Connection connection)
 					throws SQLException {
 		try (PreparedStatement selectColumnStatement = connection.prepareStatement(
-				"SELECT " + tableField.column 
+				"SELECT " + tableField.column
 				+ " FROM " + tableField.schemaTable()
 				+ " WHERE 1 = 0")) {
 			ResultSetMetaData metadata = selectColumnStatement.getMetaData();
