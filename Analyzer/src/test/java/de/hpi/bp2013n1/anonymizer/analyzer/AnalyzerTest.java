@@ -250,7 +250,9 @@ public class AnalyzerTest {
 				dependentField,
 				tableField("VISIT.VISITORSURNAME"),
 				tableField("PRODUCTBUYER.BUYERNAME"),
-				tableField("BUYERDETAILS.BUYERNAME"));
+				tableField("BUYERDETAILS.BUYERNAME"),
+				tableField("CINEMACASHLOG.VISITORNAME"),
+				tableField("CINEMACASHLOG.VISITORSURNAME"));
 		List<TableField> matchingButIndependentFields = Lists.newArrayList(matchingFields);
 		matchingButIndependentFields.remove(dependentField);
 		sut.initializeRulesByTableField();
