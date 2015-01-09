@@ -42,7 +42,7 @@ public class SQLWhereClauseValidator {
 					+ " WHERE " + rule.getAdditionalInfo());
 		} catch (SQLException e) {
 			Logger.getLogger(getClass().getName()).severe("Rule " + rule
-					+ " has an invalid retain criterion: " + e.getMessage());
+					+ " has an invalid SQL-WHERE criterion: " + e.getMessage());
 			return false;
 		}
 		return true;

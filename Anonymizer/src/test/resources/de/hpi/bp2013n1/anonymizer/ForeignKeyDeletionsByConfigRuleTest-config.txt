@@ -9,6 +9,6 @@ PUBLIC 10000
 - nop: de.hpi.bp2013n1.anonymizer.NoOperationStrategy
 
 # Table.Field		Type		AdditionalInfo
-TABLE1.PARENT       DeleteWhere PARENT = 0
+TABLE1              DeleteWhere PARENT = 0
 TABLE1.PARENT       nop
 	TABLE2.DEPENDANT

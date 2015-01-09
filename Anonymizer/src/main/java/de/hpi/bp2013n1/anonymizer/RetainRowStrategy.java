@@ -24,6 +24,7 @@ package de.hpi.bp2013n1.anonymizer;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.logging.Logger;
 
 import com.google.common.collect.Lists;
 
@@ -57,8 +58,8 @@ public class RetainRowStrategy extends TransformationStrategy {
 		try {
 			if (criterionMatcher.rowMatches(rule, row))
 				anonymizer.getRetainService().retainCurrentRow(
-					row.getCurrentSchema(), 
-					row.getCurrentTable(), 
+					row.getCurrentSchema(),
+					row.getCurrentTable(),
 					row);
 		} catch (InsertRetainMarkFailed e) {
 			throw new TransformationFailedException(e);
@@ -74,8 +75,16 @@ public class RetainRowStrategy extends TransformationStrategy {
 	@Override
 	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException {
-		return new SQLWhereClauseValidator(originalDatabase).
+		boolean valid = new SQLWhereClauseValidator(originalDatabase).
 				additionalInfoIsValidWhereClause(rule);
+		if (rule.getTableField().getColumn() != null) {
+			Logger.getLogger(getClass().getName()).severe("Rule " + rule
+					+ " is inavalid because " + getClass().getSimpleName()
+					+ " can only be applied to complete rows, not attributes. "
+					+ "Remove the attribute name from the rule declaration.");
+			valid = false;
+		}
+		return valid;
 	}
 
 }
