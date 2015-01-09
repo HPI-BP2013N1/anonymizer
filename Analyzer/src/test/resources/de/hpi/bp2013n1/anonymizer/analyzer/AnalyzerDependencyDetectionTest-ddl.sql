@@ -83,9 +83,9 @@ CREATE TABLE TABLE9 (
 	PRIMARY KEY(C1, D1)
 );
 CREATE TABLE TABLE10 (
-	C1 SMALLINT, -- ref TABLE9.A1 (indirect TABLE7.A)
-	D1 SMALLINT, -- ref TABLE9.B1 (indirect TABLE8.B)
-	C2 SMALLINT, -- ref TABLE9.A2 (indirect TABLE7.A)
+	C1 SMALLINT, -- ref TABLE9.C1 (indirect TABLE7.A)
+	D1 SMALLINT, -- ref TABLE9.D1 (indirect TABLE8.B)
+	C2 SMALLINT, -- ref TABLE9.C2 (indirect TABLE7.A)
 	X10 SMALLINT,
 	PRIMARY KEY(C1, D1, C2),
 	FOREIGN KEY(C1, D1, C2) REFERENCES TABLE9(C1, D1, C2)
@@ -93,11 +93,8 @@ CREATE TABLE TABLE10 (
 -- #TABLE7.C
 --   #TABLE9.C1
 --   #TABLE9.C2
---   #TABLE10.C1 # actually optional if rules can be composed, forbidden otherwise
---   #TABLE10.C2 # actually optional if rules can be composed, forbidden otherwise
 -- #TABLE8.D
 --   #TABLE9.D1
---   #TABLE10.D1 # actually optional if rules can be composed
 -- # the following are actually optional because 
 -- # they will be derived from the FK at runtime
 -- # if they would be transformed that should be visible in the config file

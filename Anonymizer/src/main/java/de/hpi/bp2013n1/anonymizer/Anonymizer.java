@@ -37,7 +37,9 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.TreeMap;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
@@ -48,6 +50,7 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.LinkedHashMultimap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 
@@ -68,6 +71,7 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyNotFoundException;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 import de.hpi.bp2013n1.anonymizer.tools.ConstraintToggler;
 import de.hpi.bp2013n1.anonymizer.tools.TableTruncater;
+import de.hpi.bp2013n1.anonymizer.util.RuleConnector;
 import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 
 public class Anonymizer {
@@ -77,17 +81,18 @@ public class Anonymizer {
 	private Connection originalDatabase, anonymizedDatabase, transformationDB;
 	private ArrayList<TransformationStrategy> transformationStrategies = new ArrayList<>();
 	private TreeMap<String, TransformationStrategy> strategyByClassName = new TreeMap<>();
+	private Map<String, TransformationStrategy> strategyByName = new TreeMap<>();
 	private ArrayList<TableRuleMap> tableRuleMaps;
 	private final int LOG_INTERVAL = 1000;
 	
 	public static final Logger anonymizerLogger = Logger.getLogger(Anonymizer.class.getName());
 	private static FileHandler logFileHandler;
 	private static SimpleFormatter logFormatter;
-	private int currentTableNumber;
 	ConstraintToggler toggler = new ConstraintToggler();
 	private RowRetainService retainService;
 	private ForeignKeyDeletionsHandler foreignKeyDeletions = new ForeignKeyDeletionsHandler();
 	private boolean skipRuleValidation;
+	Multimap<TableField, Rule> comprehensiveRulesBySite;
 	
 	public static class TableNotInScopeException extends Exception {
 		private static final long serialVersionUID = -4527921975005958468L;
@@ -230,14 +235,20 @@ public class Anonymizer {
 			IllegalAccessException, InvocationTargetException,
 			ClassCastException {
 		anonymizerLogger.info("Loading transformation strategies.");
-		for (Rule rule : config.rules) {
-			String strategy = rule.getStrategy();
-			String strategyClassName = config.strategyMapping.get(strategy);
+		for (Map.Entry<String, String> strategiesEntry : config.getStrategyMapping().entrySet()) {
+			String strategy = strategiesEntry.getKey();
+			String strategyClassName = strategiesEntry.getValue();
 			checkNotNull(strategyClassName, "No strategy class defined for " + strategy);
 			if (!strategyByClassName.containsKey(strategyClassName)) {
 				loadAndInstanciateStrategy(strategyClassName);
 			}
-			rule.setTransformation(strategyByClassName.get(strategyClassName));
+			TransformationStrategy transformationStrategy =
+					strategyByClassName.get(strategyClassName);
+			strategyByName.put(strategy, transformationStrategy);
+		}
+		for (Rule rule : config.rules) {
+			String strategy = rule.getStrategy();
+			rule.setTransformation(strategyByName.get(strategy));
 		}
 	}
 	
@@ -437,23 +448,65 @@ public class Anonymizer {
 			// no performance gain but not severe
 		}
 		
+		collectRulesBySite();
 		tableRuleMaps = AnonymizerUtils.createTableRuleMaps(config, scope);
-		currentTableNumber = 0;
-		for (TableRuleMap tableRuleMap : tableRuleMaps) {
-			copyAndAnonymizeTable(tableRuleMap);
+		int currentTableNumber = 0;
+		for (String table : scope.tables) {
+			TableRuleMap ruleMap = buildTableRuleMapFor(table);
+			anonymizerLogger.info("Copying data from: " + table +
+					" (table " + (++currentTableNumber)
+					+ "/" + scope.tables.size() + ").");
+			copyAndAnonymizeTable(ruleMap);
 		}
 		
 		try {
 			anonymizedDatabase.setAutoCommit(true);
 		} catch (SQLException | AbstractMethodError e) {
-			// probably disabling it also failed earlier
+			// probably disabling it earlier failed as well
 		}
 		anonymizerLogger.info("Finished: Copying Data.");
 	}
 
+	private TableRuleMap buildTableRuleMapFor(String table) {
+		TableField tableSite = new TableField(table, null, config.schemaName);
+		TableRuleMap ruleMap = new TableRuleMap(table);
+		for (Map.Entry<TableField, Rule> fieldAndRule : comprehensiveRulesBySite.entries()) {
+			TableField tableField = fieldAndRule.getKey();
+			if (tableField.asTableSite().equals(tableSite)) {
+				Rule rule = fieldAndRule.getValue();
+				ruleMap.put(tableField.getColumn(), rule);
+			}
+		}
+		return ruleMap;
+	}
+
+	void collectRulesBySite() {
+		RuleConnector ruleConnector = new RuleConnector();
+		ruleConnector.addRules(config.getRules());
+		Multimap<TableField, Rule> rulesBySite = ruleConnector.getRulesBySite();
+		comprehensiveRulesBySite = LinkedHashMultimap.create();
+		for (Map.Entry<TableField, Rule> siteAndRule : rulesBySite.entries()) {
+			TableField thisSite = siteAndRule.getKey();
+			ArrayList<Rule> rulesToApplyToThisSite = new ArrayList<>();
+			Rule rule = siteAndRule.getValue();
+			rulesToApplyToThisSite.addAll(rule.transitiveParents());
+			rulesToApplyToThisSite.add(rule);
+			comprehensiveRulesBySite.putAll(thisSite, rulesToApplyToThisSite);
+		}
+		
+		Iterator<Rule> rulesIterator = comprehensiveRulesBySite.values().iterator();
+		while (rulesIterator.hasNext()) {
+			Rule eachRule = rulesIterator.next();
+			if (eachRule.getTransformation() == null) {
+				eachRule.setTransformation(strategyByName.get(eachRule.getStrategy()));
+			}
+			if (eachRule.getTransformation() instanceof NoOperationStrategy) {
+				rulesIterator.remove();
+			}
+		}
+	}
+
 	private void copyAndAnonymizeTable(TableRuleMap tableRuleMap) {
-		anonymizerLogger.info("Copying data from: " + tableRuleMap.tableName +
-				" (table " + (++currentTableNumber) + "/" + tableRuleMaps.size() + ").");
 		// make sure target newDB is empty
 		String qualifiedTableName = config.schemaName + "." + tableRuleMap.tableName;
 		truncateTable(qualifiedTableName);

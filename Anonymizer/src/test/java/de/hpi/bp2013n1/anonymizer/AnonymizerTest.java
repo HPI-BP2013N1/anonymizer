@@ -21,9 +21,16 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeThat;
+import static org.mockito.Mockito.mock;
 
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -33,6 +40,9 @@ import java.util.Collection;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.google.common.collect.Multimap;
+
+import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
@@ -114,9 +124,74 @@ public class AnonymizerTest {
 			testData.populateDatabases();
 			testData.createAnonymizer().run();
 			org.dbunit.Assertion.assertEquals(
-					testData.expectedDestinationDataSet(), 
+					testData.expectedDestinationDataSet(),
 					testData.actualDestinationDataSet());
 		}
+	}
+	
+	@Test
+	public void testCollectRulesBySite() {
+		Rule leaf = new Rule(new TableField("S.LEAF.C"), "a", "");
+		leaf.setTransformation(mock(TransformationStrategy.class));
+		Rule parent1 = new Rule(new TableField("S.PARENT.C"), "b", "");
+		parent1.setTransformation(mock(TransformationStrategy.class));
+		Rule parent2 = new Rule(new TableField("S.PARENT.C"), "c", "");
+		assumeThat(parent1.getTableField(), is(parent2.getTableField()));
+		parent2.setTransformation(mock(TransformationStrategy.class));
+		Rule parentsParent = new Rule(new TableField("S.TOP.C"), "d", "");
+		parentsParent.setTransformation(mock(TransformationStrategy.class));
+		parentsParent.addDependant(parent1.getTableField());
+		parent1.addDependant(leaf.getTableField());
+		stubConfig.addRule(parentsParent);
+		stubConfig.addRule(leaf);
+		stubConfig.addRule(parent1);
+		stubConfig.addRule(parent2);
+		sut.collectRulesBySite();
+		assertThat(sut.comprehensiveRulesBySite.keySet(), containsInAnyOrder(
+				leaf.getTableField(), parent1.getTableField(),
+				parentsParent.getTableField()));
+		assertThat(sut.comprehensiveRulesBySite.get(parentsParent.getTableField()),
+				contains(parentsParent));
+		assumeThat(leaf.transitiveParents(),
+				contains(parentsParent, parent1, parent2));
+		assertThat(sut.comprehensiveRulesBySite.get(parent1.getTableField()),
+				contains(parentsParent, parent1, parent2));
+		assertThat(sut.comprehensiveRulesBySite.get(parent2.getTableField()),
+				contains(parentsParent, parent1, parent2));
+		assertThat(sut.comprehensiveRulesBySite.get(leaf.getTableField()),
+				contains(parentsParent, parent1, parent2, leaf));
+		
+		parentsParent.setTransformation(mock(NoOperationStrategy.class));
+		parent2.setTransformation(mock(NoOperationStrategy.class));
+		// when parentsParent and parent2 are no-ops,
+		// only leaf and parent1 should be left in each chain
+		sut.collectRulesBySite();
+		assertThat(sut.comprehensiveRulesBySite.keySet(), containsInAnyOrder(
+				leaf.getTableField(), parent1.getTableField()));
+		assertThat(sut.comprehensiveRulesBySite.get(parent1.getTableField()),
+				contains(parent1));
+		assertThat(sut.comprehensiveRulesBySite.get(parent2.getTableField()),
+				contains(parent1));
+		assertThat(sut.comprehensiveRulesBySite.get(leaf.getTableField()),
+				contains(parent1, leaf));
+	}
+	
+	@Test
+	public void testRulesBySiteMultimapImplementation()
+			throws NoSuchMethodException, SecurityException,
+			IllegalAccessException, IllegalArgumentException,
+			InvocationTargetException {
+		sut.collectRulesBySite();
+		Method create = sut.comprehensiveRulesBySite.getClass().getMethod("create");
+		@SuppressWarnings("unchecked")
+		Multimap<Integer, Integer> mmap = (Multimap<Integer, Integer>) create.invoke(null);
+		mmap.put(5, 1);
+		mmap.put(4, 3);
+		mmap.put(4, 2);
+		mmap.put(4, 1);
+		mmap.put(4, 3);
+		assertThat(mmap.keySet(), contains(5, 4));
+		assertThat(mmap.get(4), contains(3, 2, 1));
 	}
 
 }

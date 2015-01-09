@@ -21,7 +21,7 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkArgument;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -47,12 +47,12 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
 public class CharacterStrategy extends TransformationStrategy {
 
-	private Map<Rule, Map<Character, Character>> characterMappings = Maps.newHashMap();	
+	private Map<Rule, Map<Character, Character>> characterMappings = Maps.newHashMap();
 	private String ignoredCharacters = "";
 	
 	private Logger characterLogger = Logger.getLogger(CharacterStrategy.class.getName());
 	
-	public CharacterStrategy(Anonymizer anonymizer, Connection oldDB, 
+	public CharacterStrategy(Anonymizer anonymizer, Connection oldDB,
 			Connection translateDB) throws SQLException {
 		super(anonymizer, oldDB, translateDB);
 	}
@@ -62,15 +62,15 @@ public class CharacterStrategy extends TransformationStrategy {
 	}
 
 	@Override
-	public void setUpTransformation(Collection<Rule> rules) 
-			throws TransformationTableCreationException, FetchPseudonymsFailedException, 
+	public void setUpTransformation(Collection<Rule> rules)
+			throws TransformationTableCreationException, FetchPseudonymsFailedException,
 			TransformationKeyCreationException {
 		for (Rule configRule : rules)
 			setUpTransformation(configRule);
 	}
 
-	public void setUpTransformation(Rule rule) 
-			throws TransformationTableCreationException, FetchPseudonymsFailedException, 
+	public void setUpTransformation(Rule rule)
+			throws TransformationTableCreationException, FetchPseudonymsFailedException,
 			TransformationKeyCreationException {
 		try {
 			if (!translationTableExists(rule.getTableField()))
@@ -91,9 +91,9 @@ public class CharacterStrategy extends TransformationStrategy {
 		}
 	}
 
-	private boolean translationTableExists(TableField translatedField) 
+	private boolean translationTableExists(TableField translatedField)
 			throws SQLException {
-		try (ResultSet tableResultSet = 
+		try (ResultSet tableResultSet =
 			transformationDatabase.getMetaData().getTables(
 					null,
 					translatedField.schema,
@@ -103,7 +103,7 @@ public class CharacterStrategy extends TransformationStrategy {
 		}
 	}
 
-	protected Map<Character, Character> fillKeyLists(Rule rule) 
+	protected Map<Character, Character> fillKeyLists(Rule rule)
 			throws SQLException {
 		Map<Character, Character> characterMapping = fetchCharacterMapping(rule);
 		Map<Character, Character> newCharacterMapping = fillCharacterMapping(
@@ -146,12 +146,12 @@ public class CharacterStrategy extends TransformationStrategy {
 				usedPseudonymsPattern.append(c);
 			}
 			usedPseudonymsPattern.append(']');
-			newLowerCasePseudonyms = lowerCaseCharacters().replaceAll( 
-					usedPseudonymsPattern.toString(), "").toCharArray();      
-			newUpperCasePseudonyms = upperCaseCharacters().replaceAll( 
-			usedPseudonymsPattern.toString(), "").toCharArray();      
-			newPseudonymNumbers = numberCharacters().replaceAll(       
-			usedPseudonymsPattern.toString(), "").toCharArray();      
+			newLowerCasePseudonyms = lowerCaseCharacters().replaceAll(
+					usedPseudonymsPattern.toString(), "").toCharArray();
+			newUpperCasePseudonyms = upperCaseCharacters().replaceAll(
+			usedPseudonymsPattern.toString(), "").toCharArray();
+			newPseudonymNumbers = numberCharacters().replaceAll(
+			usedPseudonymsPattern.toString(), "").toCharArray();
 		} else {
 			newLowerCasePseudonyms = lowerCaseCharArray();
 			newUpperCasePseudonyms = upperCaseCharArray();
@@ -172,33 +172,33 @@ public class CharacterStrategy extends TransformationStrategy {
 		return newCharacterMapping;
 	}
 
-	protected void createPseudonymsTable(TableField tableField) 
+	protected void createPseudonymsTable(TableField tableField)
 			throws TransformationTableCreationException {
-		String characterMappingSchemaTable = 
+		String characterMappingSchemaTable =
 				tableField.schema + "." + characterMappingTableName(tableField);
 		try (Statement transformationStatement = transformationDatabase.createStatement()) {
-			transformationStatement.execute("CREATE TABLE " 
-					+ characterMappingSchemaTable 
-					+ " (oldValue char(1) NOT NULL, " 
-					+ "newValue char(1) NOT NULL, " 
+			transformationStatement.execute("CREATE TABLE "
+					+ characterMappingSchemaTable
+					+ " (oldValue char(1) NOT NULL, "
+					+ "newValue char(1) NOT NULL, "
 					+ "PRIMARY KEY(oldValue))");
 		} catch (SQLException e) {
 			if (e.getErrorCode() == -601) {
-				characterLogger.info("Creating table " + characterMappingSchemaTable + 
+				characterLogger.info("Creating table " + characterMappingSchemaTable +
 						" failed - already existed");
 			} else {
 				throw new TransformationTableCreationException(""
-						+ "Could not create character transformation table " 
+						+ "Could not create character transformation table "
 						+ characterMappingSchemaTable
 						+ " because of an unknown error.");
 			}
 		}
 	}
 
-	private void insertNewCharacterMapping(Rule rule, 
+	private void insertNewCharacterMapping(Rule rule,
 			Map<Character, Character> newCharacterMapping)
 			throws SQLException {
-		try (PreparedStatement preparedTranslateStmt = 
+		try (PreparedStatement preparedTranslateStmt =
 				transformationDatabase.prepareStatement(
 						"INSERT INTO " + rule.getTableField().schema + "."
 						+ characterMappingTableName(rule.getTableField())
@@ -228,7 +228,7 @@ public class CharacterStrategy extends TransformationStrategy {
 				ResultSet mappingResultSet = selectStatement.executeQuery()) {
 			while (mappingResultSet.next())
 				characterMapping.put(
-						mappingResultSet.getString(1).charAt(0), 
+						mappingResultSet.getString(1).charAt(0),
 						mappingResultSet.getString(2).charAt(0));
 		}
 		return characterMapping;
@@ -244,19 +244,19 @@ public class CharacterStrategy extends TransformationStrategy {
 
 	@Override
 	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row) throws TransformationKeyNotFoundException {
-		checkArgument(oldValue instanceof String || oldValue == null, 
-				getClass() + " should transform " + oldValue 
+		checkArgument(oldValue instanceof String || oldValue == null,
+				getClass() + " should transform " + oldValue
 				+ " but can only opeprate on Strings");
 		return Lists.newArrayList(
-				transform((String) oldValue, rule, 
+				transform((String) oldValue, rule,
 						rule.getAdditionalInfo().toCharArray()));
 	}
 
-	protected String transform(String oldValue, Rule rule, 
+	protected String transform(String oldValue, Rule rule,
 			char[] pattern) throws TransformationKeyNotFoundException {
-		StringBuilder newValue = new StringBuilder();		
+		StringBuilder newValue = new StringBuilder();
 		if (oldValue == null)
-			return oldValue;		
+			return oldValue;
 		for (int i = 0; i < pattern.length; i++) {
 			char c = pattern[i];
 			switch (c) {

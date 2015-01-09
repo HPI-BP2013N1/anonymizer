@@ -2,7 +2,17 @@ package de.hpi.bp2013n1.anonymizer.analyzer;
 
 import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.isLikeRule;
 import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.RuleMatcher.rule;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.either;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isEmptyOrNullString;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import java.io.BufferedReader;

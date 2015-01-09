@@ -37,8 +37,8 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
 import de.hpi.bp2013n1.anonymizer.Anonymizer;
@@ -80,7 +80,7 @@ public class Analyzer {
 	static Logger logger = Logger.getLogger(Analyzer.class.getName());
 	private Map<String, TransformationStrategy> strategies;
 	private RuleValidator ruleValidator;
-	private Map<TableField, Rule> rulesByTableField;
+	private Multimap<TableField, Rule> rulesByTableField = ArrayListMultimap.create();
 	
 	public Analyzer(Connection con, Config config, Scope scope){
 		this.connection = con;
@@ -127,8 +127,8 @@ public class Analyzer {
 		addRulesForPrimaryKeyColumns(metaData);
 		initializeRulesByTableField();
 		findDependantsByForeignKeys(metaData);
-		Iterator<Rule> ruleIterator = config.rules.iterator();
 		ruleValidator = new RuleValidator(strategies, metaData);
+		Iterator<Rule> ruleIterator = config.rules.iterator();
 		while (ruleIterator.hasNext()) {
 			Rule rule = ruleIterator.next();
 			System.out.println("  Processing: " + rule);
@@ -144,13 +144,10 @@ public class Analyzer {
 	}
 
 	void initializeRulesByTableField() {
-		rulesByTableField = Maps.newHashMap();
 		for (Rule rule : config.rules) {
 			rulesByTableField.put(rule.getTableField(), rule);
 		}
 	}
-
-
 
 	void addRulesForPrimaryKeyColumns(DatabaseMetaData metaData) throws SQLException {
 		Multimap<String, Rule> rulesByParentTable = HashMultimap.create();
@@ -162,20 +159,43 @@ public class Analyzer {
 			while (tablesResultSet.next()) {
 				String tableName = tablesResultSet.getString("TABLE_NAME");
 				Collection<Rule> rulesForTable = rulesByParentTable.get(tableName);
-                Multimap<String, Rule> rulesByColumn = HashMultimap.create();
-                for (Rule rule : rulesForTable) {
-                    rulesByColumn.put(rule.getTableField().column, rule);
-                }
 				try (ResultSet primaryKeyResultSet =
 						metaData.getPrimaryKeys(null, config.schemaName, tableName)) {
+					primaryKeyColumnsLoop:
 					while (primaryKeyResultSet.next()) {
-						String columnName = primaryKeyResultSet.getString("COLUMN_NAME");
-						if (!rulesByColumn.containsKey(columnName))
-							addNoOpRule(config.schemaName, tableName, columnName);
+						TableField pkTableField = new TableField(
+								tablesResultSet.getString("TABLE_NAME"),
+								primaryKeyResultSet.getString("COLUMN_NAME"),
+								tablesResultSet.getString("TABLE_SCHEM"));
+						for (Rule ruleForTable : rulesForTable) {
+							if (ruleForTable.getTableField().equals(pkTableField))
+								continue primaryKeyColumnsLoop;
+						}
+						// no rule applies to this column yet
+						config.addNoOpRuleFor(pkTableField);
 					}
 				}
 			}
 		}
+	}
+
+
+	/** Returns true if any rule in the config contains the argument as a dependent. */
+	boolean anyRuleContainsDependent(TableField dependentTableField) {
+		for (Rule anyRule : config.getRules()) {
+			if (anyRule.getDependants().contains(dependentTableField))
+				return true;
+		}
+		return false;
+	}
+
+	boolean inverseRuleExists(TableField suggestedParent, TableField suggestedChild) {
+		Collection<Rule> rulesForChild = rulesByTableField.get(suggestedChild);
+		for (Rule anyRule : rulesForChild) {
+			if (anyRule.getDependants().contains(suggestedParent))
+				return true;
+		}
+		return false;
 	}
 	
 	void findPossibleDependantsByName(Rule rule,
@@ -190,15 +210,11 @@ public class Analyzer {
 				TableField newItem = new TableField(
 						similarlyNamedColumns.getString("TABLE_NAME"),
 						similarlyNamedColumns.getString("COLUMN_NAME"),
-                        config.schemaName);
-                Rule ruleForSimilarlyNamedColumn = rulesByTableField.get(newItem);
-                if (!(newItem.equals(parentField)
-                        || rule.getDependants().contains(newItem)
-                        || rule.getPotentialDependants().contains(newItem)
-                        || (ruleForSimilarlyNamedColumn != null
-                                && ruleForSimilarlyNamedColumn.getDependants()
-                                    .contains(parentField))))
-                    rule.addPotentialDependant(newItem);
+						similarlyNamedColumns.getString("TABLE_SCHEM"));
+				if (!newItem.equals(parentField)
+						&& !anyRuleContainsDependent(newItem)
+						&& !inverseRuleExists(parentField, newItem))
+					rule.addPotentialDependant(newItem);
 			}
 		}
 	}
@@ -221,6 +237,7 @@ public class Analyzer {
 
 	private void addDependantsFromReferences(ResultSet referencesFromMetaData)
 			throws SQLException {
+		referencesLoop:
 		while (referencesFromMetaData.next()) {
 			if (!scope.tables.contains(referencesFromMetaData.getString("FKTABLE_NAME"))
 					|| !scope.tables.contains(referencesFromMetaData.getString("PKTABLE_NAME")))
@@ -229,18 +246,19 @@ public class Analyzer {
 					referencesFromMetaData.getString("PKTABLE_NAME"),
 					referencesFromMetaData.getString("PKCOLUMN_NAME"),
 					referencesFromMetaData.getString("PKTABLE_SCHEM"));
-			Rule ruleForPKColumn = rulesByTableField.get(pkTableField);
-			if (ruleForPKColumn == null) {
-				ruleForPKColumn = addNoOpRule(pkTableField);
-				rulesByTableField.put(pkTableField, ruleForPKColumn);
+			Collection<Rule> rulesForPKColumn = rulesByTableField.get(pkTableField);
+			if (rulesForPKColumn.isEmpty()) {
+				rulesForPKColumn.add(config.addNoOpRuleFor(pkTableField));
 			}
 			TableField fkTableField = new TableField(
 					referencesFromMetaData.getString("FKTABLE_NAME"),
 					referencesFromMetaData.getString("FKCOLUMN_NAME"),
 					referencesFromMetaData.getString("FKTABLE_SCHEM"));
-            if (ruleForPKColumn.getDependants().contains(fkTableField))
-				continue;
-            ruleForPKColumn.addDependant(fkTableField);
+			for (Rule ruleForPKColumn : rulesForPKColumn) {
+				if (ruleForPKColumn.getDependants().contains(fkTableField))
+					continue referencesLoop; // is already a dependent
+			}
+			rulesForPKColumn.iterator().next().addDependant(fkTableField);
 		}
 	}
 

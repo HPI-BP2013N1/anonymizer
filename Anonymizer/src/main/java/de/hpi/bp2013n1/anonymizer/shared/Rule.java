@@ -22,10 +22,12 @@ package de.hpi.bp2013n1.anonymizer.shared;
 
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 
+import de.hpi.bp2013n1.anonymizer.TransformationStrategy;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class Rule {
@@ -39,6 +41,8 @@ public class Rule {
 	private Set<TableField> potentialDependants = new TreeSet<TableField>();
 	private String additionalInfo = "";
 	// the following fields are filled at runtime based on the above fields
+	private List<Rule> parentRules = new ArrayList<>();
+	private List<Rule> dependentRules = new ArrayList<>();
 	private TransformationStrategy transformation;
 
 	public Rule() {
@@ -67,7 +71,11 @@ public class Rule {
 	public Set<TableField> getDependants() {
 		return dependants;
 	}
-	
+
+	public void setDependants(Set<TableField> newDependentsSet) {
+		dependants = newDependentsSet;
+	}
+
 	public boolean addDependant(TableField newDependant) {
 		return dependants.add(newDependant);
 	}
@@ -91,6 +99,22 @@ public class Rule {
 
 	public void setTransformation(TransformationStrategy transformation) {
 		this.transformation = transformation;
+	}
+
+	public List<Rule> getParentRules() {
+		return parentRules;
+	}
+	
+	public boolean addParentRule(Rule newParent) {
+		return parentRules.add(newParent);
+	}
+
+	public List<Rule> getDependentRules() {
+		return dependentRules;
+	}
+	
+	public boolean addDependentRule(Rule newDependent) {
+		return dependentRules.add(newDependent);
 	}
 
 	@Override
@@ -143,6 +167,21 @@ public class Rule {
 		} else if (!tableField.equals(other.tableField))
 			return false;
 		return true;
+	}
+
+	/**
+	 * Returns a list of rules with the rules which must be applied to the
+	 * receiver's tableField before the receiver. This list is ordered such that
+	 * the rules' transformations can be applied to tableField by iterating the
+	 * list.
+	 */
+	public List<Rule> transitiveParents() {
+		LinkedHashSet<Rule> result = new LinkedHashSet<>();
+		for (Rule eachParentRule : parentRules) {
+			result.addAll(eachParentRule.transitiveParents());
+			result.add(eachParentRule);
+		}
+		return new ArrayList<>(result);
 	}
 
 }

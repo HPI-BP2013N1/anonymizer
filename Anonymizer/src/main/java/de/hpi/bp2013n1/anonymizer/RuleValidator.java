@@ -47,7 +47,7 @@ public class RuleValidator {
 		try {
 			strategyIsValid = rule.getTransformation().isRuleValid(
 					rule, type, length, nullAllowed);
-		} catch (RuleValidationException e) {
+		} catch (RuleValidationException | NullPointerException e) {
 			logger.severe("Could not validate rule " + rule + ": "
 					+ e.getMessage());
 			return false;

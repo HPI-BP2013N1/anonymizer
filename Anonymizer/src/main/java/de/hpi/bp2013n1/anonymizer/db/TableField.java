@@ -180,4 +180,10 @@ public class TableField implements Comparable {
 			return other.column == null ? 0 : -1;
 		}
 	}
+
+	public TableField asTableSite() {
+		if (column == null)
+			return this;
+		return new TableField(table, null, schema);
+	}
 }
