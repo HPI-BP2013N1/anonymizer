@@ -29,6 +29,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Multimap;
 
+import de.hpi.bp2013n1.anonymizer.TransformationStrategy;
+
 /**
  * Maps column names of a table to the Rules which describe a transformation on
  * them.
@@ -57,10 +59,10 @@ public class TableRuleMap {
 		return ImmutableList.copyOf(rules);
 	}
 	
-	public TableRuleMap filteredByStrategy(String strategyClassName) {
+	public TableRuleMap filteredByStrategy(TransformationStrategy strategy) {
 		TableRuleMap filteredMap = new TableRuleMap(tableName);
 		for (Map.Entry<String, Rule> entry : columnRules.entries())
-            if (entry.getValue().getStrategy().equals(strategyClassName))
+			if (entry.getValue().getTransformation() == strategy)
 				filteredMap.put(entry.getKey(), entry.getValue());
 		return filteredMap;
 	}

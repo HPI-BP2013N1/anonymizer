@@ -307,6 +307,7 @@ public class Analyzer {
 		strategies.put(Config.NO_OP_STRATEGY_KEY, TransformationStrategy.loadAndCreate(
 				NoOperationStrategy.class.getName(),
 				stubAnonymizer, connection, null));
+		config.setRuleTransformations(strategies);
 		return strategies;
 	}
 

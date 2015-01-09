@@ -38,6 +38,8 @@ public class Rule {
 	private Set<TableField> dependants = new TreeSet<TableField>();
 	private Set<TableField> potentialDependants = new TreeSet<TableField>();
 	private String additionalInfo = "";
+	// the following fields are filled at runtime based on the above fields
+	private TransformationStrategy transformation;
 
 	public Rule() {
 	}
@@ -83,6 +85,14 @@ public class Rule {
 		return additionalInfo;
 	}
 	
+	public TransformationStrategy getTransformation() {
+		return transformation;
+	}
+
+	public void setTransformation(TransformationStrategy transformation) {
+		this.transformation = transformation;
+	}
+
 	@Override
 	public String toString() {
 		return tableField + " " + strategy + " " + additionalInfo;

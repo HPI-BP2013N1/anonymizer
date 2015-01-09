@@ -45,7 +45,7 @@ public class RuleValidator {
 		// let the strategies validate their rules
 		boolean strategyIsValid = true;
 		try {
-            strategyIsValid = strategies.get(rule.getStrategy()).isRuleValid(
+			strategyIsValid = rule.getTransformation().isRuleValid(
 					rule, type, length, nullAllowed);
 		} catch (RuleValidationException e) {
 			logger.severe("Could not validate rule " + rule + ": "

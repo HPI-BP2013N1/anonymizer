@@ -41,6 +41,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import de.hpi.bp2013n1.anonymizer.NoOperationStrategy;
+import de.hpi.bp2013n1.anonymizer.TransformationStrategy;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
 public class Config {
@@ -297,11 +298,14 @@ public class Config {
 			}
 		}
 	}
+	
+	private TransformationStrategy noOpStrategyInstance;
 
 	public Rule addNoOpRuleFor(TableField tableField) {
 		Rule newRule = new Rule(
 				tableField,
 				Config.NO_OP_STRATEGY_KEY, "");
+		newRule.setTransformation(noOpStrategyInstance);
 		rules.add(newRule);
 		return newRule;
 	}
@@ -314,6 +318,14 @@ public class Config {
 				continue;
 			if (rule.getDependants().isEmpty() && rule.getPotentialDependants().isEmpty())
 				ruleIterator.remove();
+		}
+	}
+
+	public void setRuleTransformations(
+			Map<String, TransformationStrategy> strategies) {
+		noOpStrategyInstance = strategies.get(NO_OP_STRATEGY_KEY);
+		for (Rule rule : rules) {
+			rule.setTransformation(strategies.get(rule.getStrategy()));
 		}
 	}
 }

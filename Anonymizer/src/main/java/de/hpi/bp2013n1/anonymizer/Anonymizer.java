@@ -237,6 +237,7 @@ public class Anonymizer {
 			if (!strategyByClassName.containsKey(strategyClassName)) {
 				loadAndInstanciateStrategy(strategyClassName);
 			}
+			rule.setTransformation(strategyByClassName.get(strategyClassName));
 		}
 	}
 	
@@ -467,8 +468,8 @@ public class Anonymizer {
 				rsMeta = rs.getMetaData();
 				
 				for (TransformationStrategy strategy : transformationStrategies) {
-					TableRuleMap tableRuleMapForStrategy = tableRuleMap.filteredByStrategy(
-							strategy.getClass().getName());
+					TableRuleMap tableRuleMapForStrategy =
+							tableRuleMap.filteredByStrategy(strategy);
 					if (tableRuleMapForStrategy.isEmpty())
 						continue;
 					strategy.prepareTableTransformation(tableRuleMapForStrategy);
@@ -692,7 +693,7 @@ public class Anonymizer {
 			Rule configRule, ResultSetRowReader rowReader, String columnName,
 			TableRuleMap tableRules) {
 		TransformationStrategy strategy;
-		strategy = getStrategyFor(configRule);
+		strategy = configRule.getTransformation();
 		try {
 			return strategy.transform(currentValue, configRule, rowReader);
 		} catch (TransformationKeyNotFoundException e) {
@@ -735,11 +736,6 @@ public class Anonymizer {
 		TableTruncater.truncateTable(qualifiedTableName, anonymizedDatabase);
 	}
 
-	public TransformationStrategy getStrategyFor(Rule configRule) {
-        return strategyByClassName.get(configRule.getStrategy());
-    }
-
-
 	private void prepareTransformations() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
@@ -752,14 +748,14 @@ public class Anonymizer {
 					+ "transformation database, this might cause the creation "
 					+ "of pseudonym tables or others to fail.");
 		}
-		Multimap<String, Rule> rulesByStrategy = ArrayListMultimap.create();
+		Multimap<TransformationStrategy, Rule> rulesByStrategy = ArrayListMultimap.create();
 		for (Rule rule : config.rules) {
 			if (!scope.tables.contains(rule.getTableField().table)) {
 				anonymizerLogger.warning("Table " + rule.getTableField().table
 						+ " not in scope. Skipping dependants and continuing.");
 				continue;
 			}
-            rulesByStrategy.put(rule.getStrategy(), rule);
+			rulesByStrategy.put(rule.getTransformation(), rule);
             for (TableField dependant : rule.getDependants()) {
 				if (!scope.tables.contains(dependant.table)){
 					anonymizerLogger.warning("Dependend table " + dependant.table
@@ -768,10 +764,9 @@ public class Anonymizer {
 				}
 			}
 		}
-		for (String strategyName : rulesByStrategy.keySet()) {
-			anonymizerLogger.info("Setting up transformations for " + strategyName);
-			strategyByClassName.get(strategyName).setUpTransformation(
-					rulesByStrategy.get(strategyName));
+		for (TransformationStrategy strategy : rulesByStrategy.keySet()) {
+			anonymizerLogger.info("Setting up transformations for " + strategy.getClass().getSimpleName());
+			strategy.setUpTransformation(rulesByStrategy.get(strategy));
 		}
 		anonymizerLogger.info("Finished: setting up transformations.");
 	}
