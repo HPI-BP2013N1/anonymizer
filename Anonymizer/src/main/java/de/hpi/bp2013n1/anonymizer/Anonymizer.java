@@ -231,11 +231,11 @@ public class Anonymizer {
 			ClassCastException {
 		anonymizerLogger.info("Loading transformation strategies.");
 		for (Rule rule : config.rules) {
-			String key = rule.strategy;
-			rule.strategy = config.strategyMapping.get(rule.strategy);
-			checkNotNull(rule.strategy, "No strategy class defined for " + key);
-			if (!strategyByClassName.containsKey(rule.strategy)) {
-				loadAndInstanciateStrategy(rule.strategy);
+			String strategy = rule.getStrategy();
+			String strategyClassName = config.strategyMapping.get(strategy);
+			checkNotNull(strategyClassName, "No strategy class defined for " + strategy);
+			if (!strategyByClassName.containsKey(strategyClassName)) {
+				loadAndInstanciateStrategy(strategyClassName);
 			}
 		}
 	}
@@ -592,8 +592,8 @@ public class Anonymizer {
 					anonymizeValue(null, configRule, rowReader, null, tableRuleMap))) {
 				if (retainRow
 						|| retainService.currentRowShouldBeRetained(
-								configRule.tableField.schema,
-								configRule.tableField.table,
+								configRule.getTableField().schema,
+								configRule.getTableField().table,
 								rowReader)) {
 					// skip this transformation which deleted the tuple
 					anonymizerLogger.info(
@@ -628,8 +628,8 @@ public class Anonymizer {
 					if (!newValues.iterator().hasNext()) {
 						if (retainRow
 								|| retainService.currentRowShouldBeRetained(
-										configRule.tableField.schema,
-										configRule.tableField.table,
+										configRule.getTableField().schema,
+										configRule.getTableField().table,
 										rowReader)) {
 							// skip this transformation which deleted the tuple
 							anonymizerLogger.info(
@@ -701,7 +701,7 @@ public class Anonymizer {
 							currentValue + "\" (from table " +
 					tableRules.tableName + "." + columnName +
 					") was not found in keys for " +
-					configRule.tableField +
+					configRule.getTableField() +
 					". Used empty String instead.",
 					e);
 		} catch (SQLException e) {
@@ -736,8 +736,9 @@ public class Anonymizer {
 	}
 
 	public TransformationStrategy getStrategyFor(Rule configRule) {
-		return strategyByClassName.get(configRule.strategy);
-	}
+        return strategyByClassName.get(configRule.getStrategy());
+    }
+
 
 	private void prepareTransformations() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
@@ -753,13 +754,13 @@ public class Anonymizer {
 		}
 		Multimap<String, Rule> rulesByStrategy = ArrayListMultimap.create();
 		for (Rule rule : config.rules) {
-			if (!scope.tables.contains(rule.tableField.table)) {
-				anonymizerLogger.warning("Table " + rule.tableField.table
+			if (!scope.tables.contains(rule.getTableField().table)) {
+				anonymizerLogger.warning("Table " + rule.getTableField().table
 						+ " not in scope. Skipping dependants and continuing.");
 				continue;
 			}
-			rulesByStrategy.put(rule.strategy, rule);
-			for (TableField dependant : rule.dependants) {
+            rulesByStrategy.put(rule.getStrategy(), rule);
+            for (TableField dependant : rule.getDependants()) {
 				if (!scope.tables.contains(dependant.table)){
 					anonymizerLogger.warning("Dependend table " + dependant.table
 							+ " not in scope. Skipping dependant and continuing.");

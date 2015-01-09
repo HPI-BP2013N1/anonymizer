@@ -97,13 +97,11 @@ public class Analyzer {
 		try {
 			System.out.println("> Processing Rules");
 			validateRulesAndAddDependants();
-			
-			System.out.println("> Validating");
-			if (validateConfig()) {
-				System.out.println("> Writing output file");
-				// write to intermediary config file
-				writeNewConfigToFile(outputFilename);
-			}
+
+			config.removeNoOpRulesWithoutDependants();
+			System.out.println("> Writing output file");
+			// write to intermediary config file
+			writeNewConfigToFile(outputFilename);
 			
 			System.out.println("done");
 			logger.fine("Finished writing config file at "
@@ -133,7 +131,7 @@ public class Analyzer {
 		ruleValidator = new RuleValidator(strategies, metaData);
 		while (ruleIterator.hasNext()) {
 			Rule rule = ruleIterator.next();
-			System.out.println("  Processing: " + rule.tableField);
+			System.out.println("  Processing: " + rule);
 			if (!ruleValidator.isValid(rule)) {
 				ruleIterator.remove();
 				logger.warning("Skipping rule " + rule);
@@ -142,15 +140,13 @@ public class Analyzer {
 			validateExistingDependants(rule, metaData);
 			findPossibleDependantsByName(rule, metaData);
 		}
-		removeNoOpRulesWithoutDependants();
+		config.removeNoOpRulesWithoutDependants();
 	}
-
-
 
 	void initializeRulesByTableField() {
 		rulesByTableField = Maps.newHashMap();
 		for (Rule rule : config.rules) {
-			rulesByTableField.put(rule.tableField, rule);
+			rulesByTableField.put(rule.getTableField(), rule);
 		}
 	}
 
@@ -159,17 +155,17 @@ public class Analyzer {
 	void addRulesForPrimaryKeyColumns(DatabaseMetaData metaData) throws SQLException {
 		Multimap<String, Rule> rulesByParentTable = HashMultimap.create();
 		for (Rule rule : config.rules) {
-			rulesByParentTable.put(rule.tableField.table, rule);
+			rulesByParentTable.put(rule.getTableField().table, rule);
 		}
 		try (ResultSet tablesResultSet = metaData.getTables(
 				null, config.schemaName, null, new String[] { "TABLE" })) {
 			while (tablesResultSet.next()) {
 				String tableName = tablesResultSet.getString("TABLE_NAME");
 				Collection<Rule> rulesForTable = rulesByParentTable.get(tableName);
-				Multimap<String, Rule> rulesByColumn = HashMultimap.create();
-				for (Rule rule : rulesForTable) {
-					rulesByColumn.put(rule.tableField.column, rule);
-				}
+                Multimap<String, Rule> rulesByColumn = HashMultimap.create();
+                for (Rule rule : rulesForTable) {
+                    rulesByColumn.put(rule.getTableField().column, rule);
+                }
 				try (ResultSet primaryKeyResultSet =
 						metaData.getPrimaryKeys(null, config.schemaName, tableName)) {
 					while (primaryKeyResultSet.next()) {
@@ -181,36 +177,12 @@ public class Analyzer {
 			}
 		}
 	}
-
-
-	private Rule addNoOpRule(String schemaName, String tableName,
-			String columnName) {
-		TableField tableField = new TableField(tableName, columnName, schemaName);
-		return addNoOpRule(tableField);
-	}
-
-
-	private Rule addNoOpRule(TableField tableField) {
-		Rule newRule = new Rule(
-				tableField,
-				Config.NO_OP_STRATEGY_KEY, "");
-		config.rules.add(newRule);
-		return newRule;
-	}
-
-
-	boolean validateConfig() {
-		// TODO: maybe we can safe one validate, or validate should be split
-		config.validate();
-		removeNoOpRulesWithoutDependants();
-		return config.validate();
-	}
-
 	
 	void findPossibleDependantsByName(Rule rule,
 			DatabaseMetaData metaData) throws SQLException {
+		TableField parentField = rule.getTableField();
 		try (ResultSet similarlyNamedColumns = metaData.getColumns(null, null,
-				null, "%" + rule.tableField.column + "%")) {
+				null, "%" + parentField.getColumn() + "%")) {
 			while (similarlyNamedColumns.next()) {
 				if (!scope.tables.contains(
 						similarlyNamedColumns.getString("TABLE_NAME")))
@@ -218,32 +190,20 @@ public class Analyzer {
 				TableField newItem = new TableField(
 						similarlyNamedColumns.getString("TABLE_NAME"),
 						similarlyNamedColumns.getString("COLUMN_NAME"),
-						config.schemaName);
-				Rule ruleForSimilarlyNamedColumn = rulesByTableField.get(newItem);
-				if (!(newItem.equals(rule.tableField)
-						|| rule.dependants.contains(newItem)
-						|| rule.potentialDependants.contains(newItem)
-						|| (ruleForSimilarlyNamedColumn != null
-								&& ruleForSimilarlyNamedColumn.dependants
-									.contains(rule.tableField))))
-					rule.potentialDependants.add(newItem);
+                        config.schemaName);
+                Rule ruleForSimilarlyNamedColumn = rulesByTableField.get(newItem);
+                if (!(newItem.equals(parentField)
+                        || rule.getDependants().contains(newItem)
+                        || rule.getPotentialDependants().contains(newItem)
+                        || (ruleForSimilarlyNamedColumn != null
+                                && ruleForSimilarlyNamedColumn.getDependants()
+                                    .contains(parentField))))
+                    rule.addPotentialDependant(newItem);
 			}
 		}
 	}
 
 	
-	void removeNoOpRulesWithoutDependants() {
-		Iterator<Rule> ruleIterator = config.rules.iterator();
-		while (ruleIterator.hasNext()) {
-			Rule rule = ruleIterator.next();
-			if (!rule.strategy.equals(Config.NO_OP_STRATEGY_KEY))
-				continue;
-			if (rule.dependants.isEmpty() && rule.potentialDependants.isEmpty())
-				ruleIterator.remove();
-		}
-	}
-
-
 	void findDependantsByForeignKeys(DatabaseMetaData metaData) throws SQLException {
 		// find all dependants by foreign keys
 		for (String tableName : scope.tables) {
@@ -262,14 +222,13 @@ public class Analyzer {
 	private void addDependantsFromReferences(ResultSet referencesFromMetaData)
 			throws SQLException {
 		while (referencesFromMetaData.next()) {
-			if (!scope.tables.contains(referencesFromMetaData.getString("FKTABLE_NAME")))
+			if (!scope.tables.contains(referencesFromMetaData.getString("FKTABLE_NAME"))
+					|| !scope.tables.contains(referencesFromMetaData.getString("PKTABLE_NAME")))
 				continue;
 			TableField pkTableField = new TableField(
 					referencesFromMetaData.getString("PKTABLE_NAME"),
 					referencesFromMetaData.getString("PKCOLUMN_NAME"),
 					referencesFromMetaData.getString("PKTABLE_SCHEM"));
-			if (!scope.tables.contains(pkTableField.table))
-				continue;
 			Rule ruleForPKColumn = rulesByTableField.get(pkTableField);
 			if (ruleForPKColumn == null) {
 				ruleForPKColumn = addNoOpRule(pkTableField);
@@ -279,9 +238,9 @@ public class Analyzer {
 					referencesFromMetaData.getString("FKTABLE_NAME"),
 					referencesFromMetaData.getString("FKCOLUMN_NAME"),
 					referencesFromMetaData.getString("FKTABLE_SCHEM"));
-			if (ruleForPKColumn.dependants.contains(fkTableField))
+            if (ruleForPKColumn.getDependants().contains(fkTableField))
 				continue;
-			ruleForPKColumn.dependants.add(fkTableField);
+            ruleForPKColumn.addDependant(fkTableField);
 		}
 	}
 
@@ -289,19 +248,25 @@ public class Analyzer {
 	void validateExistingDependants(Rule rule, DatabaseMetaData metaData)
 			throws SQLException {
 		// verify predefined dependents
-		Iterator<TableField> dependantIterator = rule.dependants.iterator();
+		Iterator<TableField> dependantIterator = rule.getDependants().iterator();
 		while (dependantIterator.hasNext()) {
 			TableField dependant = dependantIterator.next();
-			ResultSet columns = metaData.getColumns(null,
-					dependant.schema,
-					dependant.table,
-					dependant.column);
-			// there by definition is exactly one result set, or the field does not exist
-			if (!columns.next()) {
+			if (!tableFieldExists(dependant, metaData)) {
 				logger.severe("Dependant " + dependant + " does not exist in the schema. Skipping it.");
 				dependantIterator.remove();
 				continue;
 			}
+		}
+	}
+	
+	boolean tableFieldExists(TableField tableField, DatabaseMetaData metaData)
+			throws SQLException {
+		try (ResultSet columns = metaData.getColumns(null,
+				tableField.getSchema(),
+				tableField.getTable(),
+				tableField.getColumn())) {
+			// there by definition is exactly one result set, or the field does not exist
+			return columns.next();
 		}
 	}
 

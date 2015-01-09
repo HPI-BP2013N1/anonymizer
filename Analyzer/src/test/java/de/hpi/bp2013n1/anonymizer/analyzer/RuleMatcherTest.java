@@ -1,11 +1,11 @@
 package de.hpi.bp2013n1.anonymizer.analyzer;
 
+import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.RuleMatcher.rule;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.*;
-import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.RuleMatcher.*;
+import static org.junit.Assert.assertThat;
 
 import org.junit.Assume;
 import org.junit.Test;
@@ -25,7 +25,7 @@ public class RuleMatcherTest {
 	@Test
 	public void testForAttributeString() {
 		RuleMatcher isMatched = rule().forAttribute("TABLE.ATTRIBUTE");
-		assertThat(new Rule(new TableField("TABLE.ATTRIBUTE"), null, null), 
+		assertThat(new Rule(new TableField("TABLE.ATTRIBUTE"), null, null),
 				isMatched);
 	}
 
@@ -39,16 +39,16 @@ public class RuleMatcherTest {
 	public void testWithDependants() {
 		Rule testedRule = new Rule();
 		RuleMatcher isMatched = rule().withDependants(empty());
-		Assume.assumeThat(testedRule.dependants, empty());
+		Assume.assumeThat(testedRule.getDependants(), empty());
 		assertThat(testedRule, isMatched);
 		
-		isMatched = rule().withDependants(contains(new TableField("A.B"))); 
-		testedRule.dependants.add(new TableField("A.B"));
+		isMatched = rule().withDependants(contains(new TableField("A.B")));
+		testedRule.addDependant(new TableField("A.B"));
 		assertThat(testedRule, isMatched);
 		
 		isMatched = rule().withDependants(
-				containsInAnyOrder(new TableField("A.B"), new TableField("C.D"))); 
-		testedRule.dependants.add(new TableField("C.D"));
+				containsInAnyOrder(new TableField("A.B"), new TableField("C.D")));
+		testedRule.addDependant(new TableField("C.D"));
 		assertThat(testedRule, isMatched);
 	}
 
@@ -56,16 +56,16 @@ public class RuleMatcherTest {
 	public void testWithPotentialDependants() {
 		Rule testedRule = new Rule();
 		RuleMatcher isMatched = rule().withPotentialDependants(empty());
-		Assume.assumeThat(testedRule.potentialDependants, empty());
+		Assume.assumeThat(testedRule.getPotentialDependants(), empty());
 		assertThat(testedRule, isMatched);
 		
-		isMatched = rule().withPotentialDependants(contains(new TableField("A.B"))); 
-		testedRule.potentialDependants.add(new TableField("A.B"));
+		isMatched = rule().withPotentialDependants(contains(new TableField("A.B")));
+		testedRule.addPotentialDependant(new TableField("A.B"));
 		assertThat(testedRule, isMatched);
 		
 		isMatched = rule().withPotentialDependants(
-				containsInAnyOrder(new TableField("A.B"), new TableField("C.D"))); 
-		testedRule.potentialDependants.add(new TableField("C.D"));
+				containsInAnyOrder(new TableField("A.B"), new TableField("C.D")));
+		testedRule.addPotentialDependant(new TableField("C.D"));
 		assertThat(testedRule, isMatched);
 	}
 
@@ -78,9 +78,9 @@ public class RuleMatcherTest {
 	@Test
 	public void complexTest() {
 		Rule testedRule = new Rule(new TableField("A.B"), "strategy", "info");
-		testedRule.dependants.add(new TableField("C.D"));
-		testedRule.dependants.add(new TableField("C.E"));
-		testedRule.potentialDependants.add(new TableField("E.F"));
+		testedRule.addDependant(new TableField("C.D"));
+		testedRule.addDependant(new TableField("C.E"));
+		testedRule.addPotentialDependant(new TableField("E.F"));
 		RuleMatcher isMatched = rule().forAttribute("A.B")
 				.withStrategy("strategy").withAdditionalInfo("info")
 				.withDependants(hasItem(new TableField("C.D")))

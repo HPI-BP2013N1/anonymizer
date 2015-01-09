@@ -42,7 +42,7 @@ public class RowMatcher {
 			throws SQLException {
 		PrimaryKey pk = new PrimaryKey(row.getCurrentSchema(),
 				row.getCurrentTable(), matchingDatabase);
-		return rowMatches(rule.additionalInfo, row, pk);
+		return rowMatches(rule.getAdditionalInfo(), row, pk);
 	}
 
 	boolean rowMatches(String whereCriterion, ResultSetRowReader row, PrimaryKey pk)
@@ -50,7 +50,7 @@ public class RowMatcher {
 		Map<String, Object> comparisons = pk.whereComparisons(row);
 		String wherePKMatches = PrimaryKey.whereComparisonClause(comparisons);
 		try (PreparedStatement select = matchingDatabase.prepareStatement(
-				rowTestSelectQuery(row.getCurrentSchema(), row.getCurrentTable(), 
+				rowTestSelectQuery(row.getCurrentSchema(), row.getCurrentTable(),
 						whereCriterion, wherePKMatches))) {
 			PrimaryKey.setParametersForPKQuery(comparisons, select);
 			try (ResultSet result = select.executeQuery()) {

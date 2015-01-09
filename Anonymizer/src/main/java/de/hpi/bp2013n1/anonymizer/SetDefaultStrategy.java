@@ -36,7 +36,7 @@ public class SetDefaultStrategy extends TransformationStrategy {
 	
 	static Logger logger = Logger.getLogger(SetDefaultStrategy.class.getName());
 
-	public SetDefaultStrategy(Anonymizer anonymizer, Connection oldDB, 
+	public SetDefaultStrategy(Anonymizer anonymizer, Connection oldDB,
 			Connection translateDB) throws SQLException {
 		super(anonymizer, oldDB, translateDB);
 	}
@@ -47,34 +47,34 @@ public class SetDefaultStrategy extends TransformationStrategy {
 
 	@Override
 	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row) {
-		if (rule.additionalInfo.equals("<NULL>"))
+		if (rule.getAdditionalInfo().equals("<NULL>"))
 			return null;
-		return Lists.newArrayList(rule.additionalInfo);
+		return Lists.newArrayList(rule.getAdditionalInfo());
 	}
 
 	@Override
 	public void prepareTableTransformation(TableRuleMap tableRules)
 			throws SQLException {
-		// nothing to prepare		
+		// nothing to prepare
 	}
 
 	@Override
 	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException {
 		// check for defaults given where null not allowed
-		if (!nullAllowed && rule.additionalInfo.equals("<NULL>")) {
+		if (!nullAllowed && rule.getAdditionalInfo().equals("<NULL>")) {
 			logger.severe("This field requires a non-null value. Provide "
 					+ "another default value. Skipping");
-			return false;						
+			return false;
 		}
 		
 		// check for default is valid
-		if (SQLTypes.isCharacterType(type) 
-				&& rule.additionalInfo.length() != 0 
-				&& rule.additionalInfo.length() > length) {
+		if (SQLTypes.isCharacterType(type)
+				&& rule.getAdditionalInfo().length() != 0
+				&& rule.getAdditionalInfo().length() > length) {
 			logger.severe("Provided default value is longer than maximum field "
 					+ "length of " + length + ". Skipping");
-			return false;						
+			return false;
 		}
 		return true;
 	}

@@ -21,10 +21,19 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItems;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
@@ -69,8 +78,7 @@ public class UniformDistributionStrategyTest {
 		retainServiceMock = Mockito.mock(RowRetainService.class);
 		when(anonymizerMock.getRetainService()).thenReturn(retainServiceMock);
 		
-		rule = new Rule();
-		rule.tableField = new TableField("aTable.aColumn");
+		rule = new Rule(new TableField("aTable.aColumn"), "", "");
 	}
 
 	@Test
@@ -100,8 +108,7 @@ public class UniformDistributionStrategyTest {
 		} finally {
 			testData.originalDbConnection.setAutoCommit(true);
 		}
-		rule = new Rule();
-		rule.tableField = new TableField("IntegerTable.aColumn");
+		rule = new Rule(new TableField("IntegerTable.aColumn"), "", "");
 		sut.setUpTransformation(Lists.newArrayList(rule));
 		
 		assertThat("All tuples from the smallest category should be retained",
@@ -149,7 +156,7 @@ public class UniformDistributionStrategyTest {
 		when(rowReaderMock.getObject("aColumn")).thenReturn(oldValue);
 		for (int i = 0; i < previousNumber - targetNumber; i++)
 			assertThat("First occurences of larger categories should be deleted",
-					sut.transform(oldValue, rule, rowReaderMock), 
+					sut.transform(oldValue, rule, rowReaderMock),
 					emptyIterable());
 		for (int i = previousNumber - targetNumber; i < previousNumber; i++)
 			assertThat("Later occurences of larger categories should be retained",
@@ -164,7 +171,7 @@ public class UniformDistributionStrategyTest {
 		for (int i = 0; i < previousNumber - targetNumber; i++) {
 			when(rowReaderMock.getObject("aColumn")).thenReturn(oldPrefix+i);
 			assertThat("First occurences of larger categories should be deleted",
-					sut.transform(oldPrefix+i, rule, rowReaderMock), 
+					sut.transform(oldPrefix+i, rule, rowReaderMock),
 					emptyIterable());
 		}
 		for (int i = previousNumber - targetNumber; i < previousNumber; i++) {
@@ -201,7 +208,8 @@ public class UniformDistributionStrategyTest {
 		} finally {
 			testData.originalDbConnection.setAutoCommit(true);
 		}
-		rule.additionalInfo = "SUBSTR(..., 1, 1)";
+		
+		rule = new Rule(new TableField("aTable.aColumn"), "", "SUBSTR(..., 1, 1)");
 		sut.setUpTransformation(Lists.newArrayList(rule));
 		
 		assertThat("All tuples from the smallest category should be retained",
@@ -242,8 +250,8 @@ public class UniformDistributionStrategyTest {
 			testData.originalDbConnection.setAutoCommit(true);
 		}
 		int retainedColumnValue = 0;
-		when(retainServiceMock.currentRowShouldBeRetained(anyString(), 
-				eq("aTable"), 
+		when(retainServiceMock.currentRowShouldBeRetained(anyString(),
+				eq("aTable"),
 				argThat(new ResultSetRowReaderMatcher(
 						"otherColumn", retainedColumnValue))))
 				.thenReturn(true);

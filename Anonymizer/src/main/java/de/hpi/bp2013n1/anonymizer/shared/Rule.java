@@ -23,6 +23,8 @@ package de.hpi.bp2013n1.anonymizer.shared;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
 
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 
@@ -31,11 +33,11 @@ public class Rule {
 	 * Origin table and column for this rule. Dependants may be foreign keys
 	 * on this attribute.
 	 */
-	public TableField tableField;
-	public String strategy;
-	public List<TableField> dependants = new ArrayList<TableField>();
-	public List<TableField> potentialDependants = new ArrayList<TableField>();
-	public String additionalInfo = "";
+	private TableField tableField;
+	private String strategy;
+	private Set<TableField> dependants = new TreeSet<TableField>();
+	private Set<TableField> potentialDependants = new TreeSet<TableField>();
+	private String additionalInfo = "";
 
 	public Rule() {
 	}
@@ -47,7 +49,7 @@ public class Rule {
 	}
 	
 	public Rule(TableField tableField, String strategy, String additionalInfo,
-			List<TableField> dependants) {
+			Set<TableField> dependants) {
 		this.tableField = tableField;
 		this.strategy = strategy;
 		this.dependants = dependants;
@@ -60,12 +62,23 @@ public class Rule {
 	public String getStrategy() {
 		return strategy;
 	}
-	public List<TableField> getDependants() {
+	public Set<TableField> getDependants() {
 		return dependants;
 	}
-	public List<TableField> getPotentialDependants() {
+	
+	public boolean addDependant(TableField newDependant) {
+		return dependants.add(newDependant);
+	}
+	
+	public Set<TableField> getPotentialDependants() {
 		return potentialDependants;
 	}
+	
+	public boolean addPotentialDependant(TableField newPotentialDependant) {
+		return potentialDependants.add(newPotentialDependant);
+	}
+	
+	
 	public String getAdditionalInfo() {
 		return additionalInfo;
 	}

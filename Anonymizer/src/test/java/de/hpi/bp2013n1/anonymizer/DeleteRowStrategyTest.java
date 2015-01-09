@@ -21,9 +21,13 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.emptyIterable;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.sql.PreparedStatement;
@@ -70,13 +74,12 @@ public class DeleteRowStrategyTest {
 		when(rowReaderMock.getObject("ACOLUMN")).thenReturn(0);
 		when(rowReaderMock.getCurrentSchema()).thenReturn("PUBLIC");
 		when(rowReaderMock.getCurrentTable()).thenReturn("ATABLE");
-		Rule rule = new Rule();
-		rule.additionalInfo = "ACOLUMN = 0";
+		Rule rule = new Rule(null, "", "ACOLUMN = 0");
 		assertThat("Matched rows should be deleted",
 				sut.transform(0, rule, rowReaderMock), emptyIterable());
 		when(rowReaderMock.getObject("ACOLUMN")).thenReturn(1);
 		assertThat("Unmatched rows should not be deleted",
-				sut.transform(1, rule, rowReaderMock), 
+				sut.transform(1, rule, rowReaderMock),
 				contains(equalTo((Object) 1)));
 	}
 
@@ -85,16 +88,14 @@ public class DeleteRowStrategyTest {
 		try (Statement createTable = testData.originalDbConnection.createStatement()) {
 			createTable.executeUpdate("CREATE TABLE ATABLE (ACOLUMN INT PRIMARY KEY)");
 		}
-		Rule rule = new Rule();
-		rule.tableField = new TableField("ATABLE", "PUBLIC");
-		rule.additionalInfo = "ACOLUMN = 0";
+		Rule rule;
+		rule = new Rule(new TableField("ATABLE", "PUBLIC"), "", "ACOLUMN = 0");
 		assertThat(sut.isRuleValid(rule, 0, 0, false), is(true));
-		rule.additionalInfo = "FOO = 'BAR'";
+		rule = new Rule(new TableField("ATABLE", "PUBLIC"), "", "FOO = 'BAR'");
 		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
-		rule.additionalInfo = "= ? '123'";
+		rule = new Rule(new TableField("ATABLE", "PUBLIC"), "", "= ? '123'");
 		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
-		rule.additionalInfo = "ACOLUMN = 0";
-		rule.tableField.table = "XYZ";
-		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));		
+		rule = new Rule(new TableField("XYZ", "PUBLIC"), "", "ACOLUMN = 0");
+		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
 	}
 }

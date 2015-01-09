@@ -107,12 +107,13 @@ public class ConstraintToggler {
 		Set<String> alreadyDoneTables = new HashSet<String>();
 
 		for (Rule rule : config.rules) {
-			if (!alreadyDoneTables.contains(rule.tableField.table)) {
+			TableField ruleTableField = rule.getTableField();
+			if (!alreadyDoneTables.contains(ruleTableField.table)) {
 				constraints.addAll(finder
-						.findConstraintNames(rule.tableField.table));
-				alreadyDoneTables.add(rule.tableField.table);
+						.findConstraintNames(ruleTableField.table));
+				alreadyDoneTables.add(ruleTableField.table);
 			}
-			for (TableField tableField : rule.dependants) {
+			for (TableField tableField : rule.getDependants()) {
 				if (!alreadyDoneTables.contains(tableField.table)) {
 					constraints.addAll(finder
 							.findConstraintNames(tableField.table));

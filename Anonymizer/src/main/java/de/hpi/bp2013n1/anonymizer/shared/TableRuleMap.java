@@ -60,7 +60,7 @@ public class TableRuleMap {
 	public TableRuleMap filteredByStrategy(String strategyClassName) {
 		TableRuleMap filteredMap = new TableRuleMap(tableName);
 		for (Map.Entry<String, Rule> entry : columnRules.entries())
-			if (entry.getValue().strategy.equals(strategyClassName))
+            if (entry.getValue().getStrategy().equals(strategyClassName))
 				filteredMap.put(entry.getKey(), entry.getValue());
 		return filteredMap;
 	}

@@ -73,8 +73,8 @@ public class CharacterStrategy extends TransformationStrategy {
 			throws TransformationTableCreationException, FetchPseudonymsFailedException, 
 			TransformationKeyCreationException {
 		try {
-			if (!translationTableExists(rule.tableField))
-				createPseudonymsTable(rule.tableField);
+			if (!translationTableExists(rule.getTableField()))
+				createPseudonymsTable(rule.getTableField());
 		} catch (SQLException e) {
 			throw new TransformationTableCreationException(e.getMessage());
 		}
@@ -200,8 +200,8 @@ public class CharacterStrategy extends TransformationStrategy {
 			throws SQLException {
 		try (PreparedStatement preparedTranslateStmt = 
 				transformationDatabase.prepareStatement(
-						"INSERT INTO " + rule.tableField.schema + "." 
-						+ characterMappingTableName(rule.tableField) 
+						"INSERT INTO " + rule.getTableField().schema + "."
+						+ characterMappingTableName(rule.getTableField())
 						+ " VALUES (?,?)")) {
 			for (Map.Entry<Character, Character> pair : newCharacterMapping.entrySet()) {
 				preparedTranslateStmt.setString(1, String.valueOf(pair.getKey()));
@@ -223,8 +223,8 @@ public class CharacterStrategy extends TransformationStrategy {
 		}
 		characterMapping.clear();
 		try (PreparedStatement selectStatement = transformationDatabase.prepareStatement(
-				"SELECT * FROM " + rule.tableField.schema + "." 
-						+ characterMappingTableName(rule.tableField));
+				"SELECT * FROM " + rule.getTableField().schema + "."
+						+ characterMappingTableName(rule.getTableField()));
 				ResultSet mappingResultSet = selectStatement.executeQuery()) {
 			while (mappingResultSet.next())
 				characterMapping.put(
@@ -249,7 +249,7 @@ public class CharacterStrategy extends TransformationStrategy {
 				+ " but can only opeprate on Strings");
 		return Lists.newArrayList(
 				transform((String) oldValue, rule, 
-						rule.additionalInfo.toCharArray()));
+						rule.getAdditionalInfo().toCharArray()));
 	}
 
 	protected String transform(String oldValue, Rule rule, 
@@ -299,20 +299,20 @@ public class CharacterStrategy extends TransformationStrategy {
 		}
 		
 		// check for additionalInfo present
-		if (rule.additionalInfo.length() == 0) {
+		if (rule.getAdditionalInfo().length() == 0) {
 			characterLogger.severe("CharacterStrategy rules require additionalInfo");
 			return false;
 		}
 		
 		// check for additionalInfo length = field length
-		if (rule.additionalInfo.length() != length) {
+		if (rule.getAdditionalInfo().length() != length) {
 			characterLogger.severe("additionalInfo must be as long as the field (field: " + length + "). Skipping");
 			return false;
 		}
 		
 		// check for additionalInfo only P and K
 		boolean valid = true;
-		for (char c : rule.additionalInfo.toCharArray()) {
+		for (char c : rule.getAdditionalInfo().toCharArray()) {
 			if (c != 'P' && c != 'K') {
 				valid = false;
 				break;

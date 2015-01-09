@@ -21,10 +21,11 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
-import static org.junit.Assume.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assume.assumeThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.sql.PreparedStatement;
@@ -78,8 +79,8 @@ public class RetainRowStrategyTest {
 		when(rowReaderMock.getCurrentTable()).thenReturn("ATABLE");
 		assumeThat(retainService.currentRowShouldBeRetained("PUBLIC", "ATABLE",
 				rowReaderMock), is(false));
-		Rule rule = new Rule();
-		rule.additionalInfo = "ACOLUMN = 0";
+		Rule rule = new Rule(new TableField("PUBLIC.ATABLE.ACOLUMN"), "",
+				"ACOLUMN = 0");
 		sut.transform(0, rule, rowReaderMock);
 		assertThat("Matched rows should be marked as to be retained",
 				retainService.currentRowShouldBeRetained("PUBLIC", "ATABLE",
@@ -101,13 +102,13 @@ public class RetainRowStrategyTest {
 			insert.setInt(1, 0);
 			insert.executeUpdate();
 		}
-		Rule retainRule = new Rule();
-		retainRule.additionalInfo = "ACOLUMN = 0";
+		Rule retainRule = new Rule(new TableField("PUBLIC.ATABLE.ACOLUMN"), "",
+				"ACOLUMN = 0");
 		ResultSetRowReader rowReaderMock = mock(ResultSetRowReader.class);
 		when(rowReaderMock.getCurrentSchema()).thenReturn("PUBLIC");
 		when(rowReaderMock.getCurrentTable()).thenReturn("ATABLE");
 		when(rowReaderMock.getObject("ACOLUMN")).thenReturn(0);
-		assumeThat(retainService.currentRowShouldBeRetained("PUBLIC", "ATABLE", 
+		assumeThat(retainService.currentRowShouldBeRetained("PUBLIC", "ATABLE",
 				rowReaderMock), is(false));
 		// note that the first parameter is deliberately different
 		// from the value returned by the row reader mock
@@ -122,16 +123,14 @@ public class RetainRowStrategyTest {
 		try (Statement createTable = testData.originalDbConnection.createStatement()) {
 			createTable.executeUpdate("CREATE TABLE ATABLE (ACOLUMN INT PRIMARY KEY)");
 		}
-		Rule rule = new Rule();
-		rule.tableField = new TableField("ATABLE", "PUBLIC");
-		rule.additionalInfo = "ACOLUMN = 0";
+		Rule rule;
+		rule = new Rule(new TableField("ATABLE", "PUBLIC"), "", "ACOLUMN = 0");
 		assertThat(sut.isRuleValid(rule, 0, 0, false), is(true));
-		rule.additionalInfo = "FOO = 'BAR'";
+		rule = new Rule(new TableField("ATABLE", "PUBLIC"), "", "FOO = 'BAR'");
 		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
-		rule.additionalInfo = "= ? '123'";
+		rule = new Rule(new TableField("ATABLE", "PUBLIC"), "", "= ? '123'");
 		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
-		rule.additionalInfo = "ACOLUMN = 0";
-		rule.tableField.table = "XYZ";
-		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));		
+		rule = new Rule(new TableField("XYZ", "PUBLIC"), "", "ACOLUMN = 0");
+		assertThat(sut.isRuleValid(rule, 0, 0, false), is(false));
 	}
 }

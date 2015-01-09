@@ -21,7 +21,10 @@ package de.hpi.bp2013n1.anonymizer.shared;
  */
 
 
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.hasEntry;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
 import java.io.BufferedReader;
@@ -31,7 +34,7 @@ import java.io.StringReader;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import de.hpi.bp2013n1.anonymizer.NoOperationStrategy;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -51,33 +54,29 @@ public class ConfigTest {
 	public void testReadDependant() throws DependantWithoutRuleException {
 		sut.readNewRule("Table.Column Strategy Addinfo");
 		sut.readDependant("\tTable2.Column2");
-		assertThat(sut.rules.get(sut.rules.size() - 1).dependants,
+		assertThat(sut.rules.get(sut.rules.size() - 1).getDependants(),
 				hasItem(new TableField("Table2.Column2")));
 		sut.readDependant("  Table3.c");
-		assertThat(sut.rules.get(sut.rules.size() - 1).dependants,
+		assertThat(sut.rules.get(sut.rules.size() - 1).getDependants(),
 				hasItem(new TableField("Table3.c")));
 		sut.readDependant(" Table4.c # comment");
-		assertThat(sut.rules.get(sut.rules.size() - 1).dependants,
+		assertThat(sut.rules.get(sut.rules.size() - 1).getDependants(),
 				hasItem(new TableField("Table4.c")));
 	}
 
 	@Test
 	public void testReadNewRule() {
 		sut.readNewRule("Table.Column Strategy AddInfo");
-		Rule rule = new Rule();
-		rule.additionalInfo = "AddInfo";
-		rule.strategy = "Strategy";
-		rule.tableField = new TableField("Table.Column");
+		Rule rule = new Rule(new TableField("Table.Column"), "Strategy", "AddInfo");
 		assertThat(sut.rules, hasItem(rule));
 		sut.readNewRule("Table.Column Strategy");
-		rule.additionalInfo = "";
+		rule = new Rule(new TableField("Table.Column"), "Strategy", "");
 		assertThat(sut.rules, hasItem(rule));
 		sut.readNewRule("Table Strategy AddInfo");
-		rule.tableField = new TableField("Table");
-		rule.additionalInfo = "AddInfo";
+		rule = new Rule(new TableField("Table"), "Strategy", "AddInfo");
 		assertThat(sut.rules, hasItem(rule));
 		sut.readNewRule("Table Strategy additional info");
-		rule.additionalInfo = "additional info";
+		rule = new Rule(new TableField("Table"), "Strategy", "additional info");
 		assertThat(sut.rules, hasItem(rule));
 	}
 	
@@ -111,7 +110,7 @@ public class ConfigTest {
 				sut.rules,
 				contains(
 						new Rule(new TableField("Table", "Column", "schema"),
-								"S1", "foo", Lists.newArrayList(new TableField(
+								"S1", "foo", Sets.newHashSet(new TableField(
 										"Table2", "Column", "schema"))),
 						new Rule(new TableField("Table2", "Column2", "schema"),
 								"S2", "")));

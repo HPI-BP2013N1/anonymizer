@@ -21,8 +21,9 @@ package de.hpi.bp2013n1.anonymizer.db;
  */
 
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assert.assertThat;
 
 import org.junit.Test;
 
@@ -58,5 +59,30 @@ public class TableFieldTest {
 		sut = new TableField("A");
 		assertThat(sut.table, is("A"));
 		assertThat(sut.column, is(nullValue()));
+	}
+	
+	@Test
+	public void testComparison() {
+		TableField a = new TableField("A.B.C");
+		assertThat(a.compareTo(a), is(0));
+		TableField b = new TableField("A.B.D");
+		assertThat(a.compareTo(b), is(-1));
+		assertThat(b.compareTo(a), is(1));
+		a = new TableField("A.B");
+		b = new TableField("A.C");
+		assertThat(a.compareTo(b), is(-1));
+		assertThat(b.compareTo(a), is(1));
+		a = new TableField("B", "B", "SchemaA");
+		b = new TableField("A", "A", "SchemaB");
+		assertThat(a.compareTo(b), is(-1));
+		assertThat(b.compareTo(a), is(1));
+		a = new TableField("TABLE1", "Z", "S");
+		b = new TableField("TABLE2", "A", "S");
+		assertThat(a.compareTo(b), is(-1));
+		assertThat(b.compareTo(a), is(1));
+		a = new TableField("TABLE2", "Z", "S");
+		b = new TableField("TABLE10", "A", "S");
+		assertThat(a.compareTo(b), is(-1));
+		assertThat(b.compareTo(a), is(1));
 	}
 }

@@ -28,14 +28,12 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Multimap;
 
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -102,7 +100,7 @@ public class ForeignKeyDeletionsHandler {
 		// if memory is still a problem, save rows in a local h2 database backed by a file with a large cache depending on the heap size
 		deletedRows.put(table, pk.keyValues(deletedRow));
 		// how to detect if the parent row is gone if not the full PK is referenced?
-		// if the delete strategy was used with a column to which a relation exists, 
+		// if the delete strategy was used with a column to which a relation exists,
 		// deleting the dependent tuple would be desirable
 	}
 	
@@ -120,13 +118,13 @@ public class ForeignKeyDeletionsHandler {
 		for (Rule rule : rules) {
 			addForeignKeyForRuleDependents(rule);
 		}
-		Multimap<String, ForeignKey> composedForeignKeys = 
+		Multimap<String, ForeignKey> composedForeignKeys =
 				new ComposedForeignKeyDetector(dependencies, primaryKeys).composeForeignKeys();
 		dependencies.putAll(composedForeignKeys);
 	}
 
 	private void addForeignKeyForRuleDependents(Rule rule) {
-		for (TableField dependentField : rule.dependants) {
+		for (TableField dependentField : rule.getDependants()) {
 			Collection<ForeignKey> fks = dependencies.get(dependentField.table);
 			if (isColumnPartOfForeignKey(dependentField, fks))
 				continue;
@@ -144,12 +142,13 @@ public class ForeignKeyDeletionsHandler {
 	}
 
 	private void addArtificialForeignKey(Rule rule, TableField dependentField) {
-		ForeignKey newFK = new ForeignKey(rule.tableField.table, 
-				new PrimaryKey(Lists.newArrayList(rule.tableField.column),
+		TableField ruleTableField = rule.getTableField();
+		ForeignKey newFK = new ForeignKey(ruleTableField.table,
+				new PrimaryKey(Lists.newArrayList(ruleTableField.column),
 						Lists.newArrayList((String) null)));
-		newFK.addForeignKeyColumn(rule.tableField.column, dependentField.column);
+		newFK.addForeignKeyColumn(ruleTableField.column, dependentField.column);
 		dependencies.put(dependentField.table, newFK);
-		tablesWithDependants.add(rule.tableField.table);
+		tablesWithDependants.add(ruleTableField.table);
 	}
 
 }

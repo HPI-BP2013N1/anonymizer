@@ -91,8 +91,8 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 				throws PreparationFailedExection {
 			columnExpression = column;
 			AdditionalInfo info = null;
-			if (!Strings.isNullOrEmpty(rule.additionalInfo)) {
-				info = AdditionalInfo.parse(rule.additionalInfo, column);
+			if (!Strings.isNullOrEmpty(rule.getAdditionalInfo())) {
+				info = AdditionalInfo.parse(rule.getAdditionalInfo(), column);
 				if (info.columnExpressionWithPlaceholder != null) {
 					columnExpressionWithPlaceholder = info.columnExpressionWithPlaceholder;
 					columnExpression = info.columnExpressionWithPlaceholder
@@ -103,14 +103,14 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 				lowerThreshold = (long) Math.ceil(info.lowerRowThreshold);
 			}
 			try (PreparedStatement groupByStatement = originalDatabase.prepareStatement(
-					"SELECT COUNT(*), " + columnExpression + " FROM " 
-							+ rule.getTableField().schemaTable() 
+					"SELECT COUNT(*), " + columnExpression + " FROM "
+							+ rule.getTableField().schemaTable()
 							+ " GROUP BY " + columnExpression);
 					ResultSet groupByResult = groupByStatement.executeQuery()) {
 				while (groupByResult.next()) {
 					long count = groupByResult.getLong(1);
-					targetCardinality = 
-							targetCardinality > count && count >= lowerThreshold 
+					targetCardinality =
+							targetCardinality > count && count >= lowerThreshold
 							? count : targetCardinality;
 					existingCardinalities.put(
 							groupByResult.getObject(2), count);
@@ -128,7 +128,7 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 							max * info.lowerRowThreshold);
 					targetCardinality = max;
 					for (long cardinality : existingCardinalities.values()) {
-						if (cardinality >= lowerThreshold 
+						if (cardinality >= lowerThreshold
 								&& cardinality < targetCardinality)
 							targetCardinality = cardinality;
 					}
@@ -208,7 +208,7 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException {
 		// TODO: check SQL selection validity
-		return rule.dependants.isEmpty();
+		return rule.getDependants().isEmpty();
 	}
 
 }

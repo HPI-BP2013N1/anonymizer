@@ -38,10 +38,10 @@ public class SQLWhereClauseValidator {
 
 	boolean additionalInfoIsValidWhereClause(Rule rule) {
 		try (Statement testSelect = connection.createStatement()) {
-			testSelect.execute("SELECT 1 FROM " + rule.tableField.schemaTable()
-					+ " WHERE " + rule.additionalInfo);
+			testSelect.execute("SELECT 1 FROM " + rule.getTableField().schemaTable()
+					+ " WHERE " + rule.getAdditionalInfo());
 		} catch (SQLException e) {
-			Logger.getLogger(getClass().getName()).severe("Rule " + rule 
+			Logger.getLogger(getClass().getName()).severe("Rule " + rule
 					+ " has an invalid retain criterion: " + e.getMessage());
 			return false;
 		}

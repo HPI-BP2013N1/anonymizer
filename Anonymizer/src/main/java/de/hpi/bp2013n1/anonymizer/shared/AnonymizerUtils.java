@@ -32,16 +32,16 @@ public class AnonymizerUtils {
 			Config config, Scope scope) {
 		ArrayList<TableRuleMap> result = scope.createAllTableRuleMaps();
 		for (Rule rule : config.rules) {
-			if (!scope.tables.contains(rule.tableField.table))
+			if (!scope.tables.contains(rule.getTableField().table))
 				continue;
 			for (TableRuleMap tableRules : result) {
-				if (tableRules.tableName.equals(rule.tableField.table)) {
-					tableRules.put(rule.tableField.column, rule);
+				if (tableRules.tableName.equals(rule.getTableField().table)) {
+					tableRules.put(rule.getTableField().column, rule);
 					break;
 				}
 			}
 			
-			for (TableField dependant : rule.dependants) {				
+			for (TableField dependant : rule.getDependants()) {
 				for (TableRuleMap tableRule : result) {
 					if (tableRule.tableName.equals(dependant.table)){
 						tableRule.put(dependant.column, rule);

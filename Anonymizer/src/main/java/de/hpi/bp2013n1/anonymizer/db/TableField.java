@@ -20,10 +20,15 @@ package de.hpi.bp2013n1.anonymizer.db;
  * #L%
  */
 
-import static com.google.common.base.Preconditions.*;
+import static com.google.common.base.Preconditions.checkArgument;
+
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import com.google.common.base.CharMatcher;
 
 
-public class TableField {
+public class TableField implements Comparable {
 	public String table;
 	public String column;
 	public String schema;
@@ -63,6 +68,18 @@ public class TableField {
 		this.schema = schemaName;
 	}
 	
+	public String getTable() {
+		return table;
+	}
+
+	public String getColumn() {
+		return column;
+	}
+
+	public String getSchema() {
+		return schema;
+	}
+
 	public String schemaTable(){
 		if (schema == null)
 			return table;
@@ -74,7 +91,7 @@ public class TableField {
 	}
 	
 	/**
-	 * Returns the schema qualified name of the table in the translations 
+	 * Returns the schema qualified name of the table in the translations
 	 * database where the mappings for this table field are stored.
 	 * @return schema.table_column
 	 */
@@ -126,5 +143,41 @@ public class TableField {
 		if (column == null)
 			return table;
 		return table + "." + column;
+	}
+
+	@Override
+	public int compareTo(Object o) {
+		checkArgument(o instanceof TableField);
+		TableField other = (TableField) o;
+		if (schema != null && other.schema != null) {
+			int schemaComp = schema.compareTo(other.schema);
+			if (schemaComp != 0)
+				return schemaComp;
+		}
+		int tableComp;
+		String trailingDigitsRegex = ".*?(\\d+)$";
+		if (table.matches(trailingDigitsRegex) && other.table.matches(trailingDigitsRegex)) {
+			tableComp = CharMatcher.DIGIT.trimTrailingFrom(table).compareTo(
+					CharMatcher.DIGIT.trimTrailingFrom(other.table));
+			if (tableComp == 0) {
+				Pattern trailingDigits = Pattern.compile(trailingDigitsRegex);
+				Matcher tableNumberMatcher = trailingDigits.matcher(table);
+				tableNumberMatcher.find();
+				Matcher otherTableNumberMatcher = trailingDigits.matcher(other.table);
+				otherTableNumberMatcher.find();
+				tableComp = Integer.compare(
+						Integer.valueOf(tableNumberMatcher.group(1)),
+						Integer.valueOf(otherTableNumberMatcher.group(1)));
+			}
+		} else {
+			tableComp = table.compareTo(other.table);
+		}
+		if (tableComp != 0)
+			return tableComp;
+		if (column != null) {
+			return other.column != null ? column.compareTo(other.column) : 1;
+		} else {
+			return other.column == null ? 0 : -1;
+		}
 	}
 }

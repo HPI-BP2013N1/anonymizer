@@ -21,9 +21,18 @@ package de.hpi.bp2013n1.anonymizer.analyzer;
  */
 
 
-import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.*;
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.appliesStrategyTo;
+import static de.hpi.bp2013n1.anonymizer.analyzer.RuleMatchers.usesStrategy;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isEmptyString;
+import static org.hamcrest.Matchers.not;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,6 +56,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -186,21 +196,22 @@ public class AnalyzerTest {
 	public void existingDependantsValidation() throws SQLException {
 		Rule validatedRule = new Rule(
 				new TableField("VISITOR.SURNAME", config.schemaName), "P", "");
-		validatedRule.dependants.add(
+		validatedRule.addDependant(
 				new TableField("doesnot.exist", config.schemaName));
-		validatedRule.dependants.add(
+		validatedRule.addDependant(
 				new TableField("doesnot.existeither", config.schemaName));
 		TableField firstValidDependant =
 				new TableField("VISIT.VISITORSURNAME", config.schemaName);
-		validatedRule.dependants.add(firstValidDependant);
-		validatedRule.dependants.add(
+		validatedRule.addDependant(firstValidDependant);
+		validatedRule.addDependant(
 				new TableField("another.fool", config.schemaName));
 		TableField secondValidDependant =
 				new TableField("VISITOR.NAME", config.schemaName);
-		validatedRule.dependants.add(secondValidDependant); // not useful but valid
+		// this is not correct regarding the test schema but it is a valid config
+		validatedRule.addDependant(secondValidDependant);
 		sut.validateExistingDependants(validatedRule,
 				originalDbConnection.getMetaData());
-		assertThat(validatedRule.dependants,
+		assertThat(validatedRule.getDependants(),
 				contains(firstValidDependant, secondValidDependant));
 	}
 	
@@ -217,14 +228,14 @@ public class AnalyzerTest {
 		sut.initializeRulesByTableField();
 		sut.findDependantsByForeignKeys(metaData);
 		TableField dependentField = tableField("VISIT.VISITORNAME");
-		assertThat(plainRule.dependants, contains(dependentField));
+		assertThat(plainRule.getDependants(), contains(dependentField));
 		config.rules.remove(plainRule);
 		Rule fullRule = new Rule(originField, "P", "",
-				Lists.newArrayList(dependentField));
+				Sets.newHashSet(dependentField));
 		config.rules.add(fullRule);
 		sut.initializeRulesByTableField();
 		sut.findDependantsByForeignKeys(metaData);
-		assertThat(fullRule.dependants, contains(dependentField));
+		assertThat(fullRule.getDependants(), contains(dependentField));
 		// TODO: test higher-order (transitive) foreign key dependencies
 		// i.e. A -> B -> C implies A -> C
 	}
@@ -246,27 +257,33 @@ public class AnalyzerTest {
 		
 		Rule plainRule = new Rule(originField, "P", "");
 		sut.findPossibleDependantsByName(plainRule, metaData);
-		assertThat(plainRule.potentialDependants,
+		assertThat(plainRule.getPotentialDependants(),
 				containsInAnyOrder(matchingFields.toArray()));
 		
 		Rule fullRule = new Rule(originField, "P", "",
-				Lists.newArrayList(dependentField));
+				Sets.newHashSet(dependentField));
+		sut.config.addRule(fullRule);
 		sut.findPossibleDependantsByName(fullRule, metaData);
-		assertThat(fullRule.potentialDependants,
+		assertThat(fullRule.getPotentialDependants(),
 				containsInAnyOrder(matchingButIndependentFields.toArray()));
+		sut.config.removeRule(fullRule);
 		
 		Rule plainRuleWithPossibleDependants = new Rule(originField, "P", "");
-		plainRuleWithPossibleDependants.potentialDependants.addAll(matchingButIndependentFields);
+		plainRuleWithPossibleDependants.getPotentialDependants().addAll(matchingButIndependentFields);
+		sut.config.addRule(plainRuleWithPossibleDependants);
 		sut.findPossibleDependantsByName(plainRuleWithPossibleDependants, metaData);
-		assertThat(plainRuleWithPossibleDependants.potentialDependants,
+		assertThat(plainRuleWithPossibleDependants.getPotentialDependants(),
 				containsInAnyOrder(matchingFields.toArray()));
+		sut.config.removeRule(plainRuleWithPossibleDependants);
 		
 		Rule fullRuleWithPossibleDependants = new Rule(originField, "P", "",
-				Lists.newArrayList(dependentField));
-		fullRuleWithPossibleDependants.potentialDependants.addAll(matchingButIndependentFields);
+				Sets.newHashSet(dependentField));
+		fullRuleWithPossibleDependants.getPotentialDependants().addAll(matchingButIndependentFields);
+		sut.config.addRule(fullRuleWithPossibleDependants);
 		sut.findPossibleDependantsByName(fullRuleWithPossibleDependants, metaData);
-		assertThat(fullRuleWithPossibleDependants.potentialDependants,
+		assertThat(fullRuleWithPossibleDependants.getPotentialDependants(),
 				containsInAnyOrder(matchingButIndependentFields.toArray()));
+		sut.config.removeRule(fullRuleWithPossibleDependants);
 	}
 	
 	@Test
@@ -275,11 +292,11 @@ public class AnalyzerTest {
 		Config newConfig = new Config();
 		newConfig.readFromFile(outputFile.getPath());
 		for (Rule rule : newConfig.rules) {
-			if (!rule.strategy.equals(Config.NO_OP_STRATEGY_KEY))
+			if (!rule.getStrategy().equals(Config.NO_OP_STRATEGY_KEY))
 				continue;
-			if (rule.dependants.isEmpty())
+			if (rule.getDependants().isEmpty())
 				assertThat("There must be no no-op rule without possible or real dependants",
-						rule.potentialDependants, is(not(empty())));
+						rule.getPotentialDependants(), is(not(empty())));
 		}
 	}
 }

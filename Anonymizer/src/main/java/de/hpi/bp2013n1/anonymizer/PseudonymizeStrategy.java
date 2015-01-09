@@ -182,7 +182,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			throws TransformationKeyCreationException,
 			TransformationTableCreationException,
 			ColumnTypeNotSupportedException {
-		TableField originTableField = rule.tableField;
+		TableField originTableField = rule.getTableField();
 		ColumnDatatypeDescription originTableFieldDatatype;
 		PseudonymsTableProxy pseudonymsTable;
 		try {
@@ -255,7 +255,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 				distinctValuesQueryForOneColumn,
 				originTableField.column, originTableField.schemaTable()));
 		
-		for ( TableField dependant : rule.dependants ){
+		for ( TableField dependant : rule.getDependants() ){
 			distinctValuesQueryBuilder.append(" union ");
 			distinctValuesQueryBuilder.append(String.format(
 					distinctValuesQueryForOneColumn,
@@ -289,7 +289,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			case Types.LONGVARCHAR:
 			case Types.LONGNVARCHAR:
 				randomValues = createRandomPseudonyms(numberOfDistinctValues,
-						requiredLength, rule.additionalInfo);
+						requiredLength, rule.getAdditionalInfo());
 				break;
 			case Types.TINYINT:
 			case Types.SMALLINT:
@@ -384,7 +384,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			return "";
 		
 		String result = cachedTransformations.get(
-				rule.tableField.schemaQualifiedTranslationTableName()).get(
+				rule.getTableField().schemaQualifiedTranslationTableName()).get(
 						oldValue.replaceAll(" +$", ""));
 		
 		if (result != null)
@@ -428,7 +428,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	private ArrayList<String> collectTranslationTableNamesFor(TableRuleMap rules) {
 		ArrayList<String> result = new ArrayList<String>();
 		for (Rule configRule : rules.getRules()) {
-			result.add(configRule.tableField.schemaQualifiedTranslationTableName());
+			result.add(configRule.getTableField().schemaQualifiedTranslationTableName());
 		}
 		return result;
 	}
@@ -447,12 +447,12 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		}
 
 		// check for prefix is valid
-		if (rule.additionalInfo.length() != 0) {
+		if (rule.getAdditionalInfo().length() != 0) {
 			if (!SQLTypes.isCharacterType(type)) {
 				logger.severe("Prefix only supported for CHARACTER and VARCHAR fields. Skipping");
 				return false;
 			}
-			if (rule.additionalInfo.length() > length) {
+			if (rule.getAdditionalInfo().length() > length) {
 				logger.severe("Provided default value is longer than maximum field length of " + length + ". Skipping");
 				return false;
 			}
@@ -462,11 +462,11 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 						selectDistinctValuesFromParentAndDependentColumns(rule))) {
 				rs.next();
 				int count = rs.getInt(1);
-				if (rule.additionalInfo.length()
+				if (rule.getAdditionalInfo().length()
 						+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS))
 						> length) {
 					logger.severe("Provided prefix is too long to pseudonymize. "
-							+ "prefix: " + rule.additionalInfo.length()
+							+ "prefix: " + rule.getAdditionalInfo().length()
 							+ " required: "
 							+ Math.ceil(Math.log10(count)/Math.log10(NUMBER_OF_AVAILABLE_CHARS))
 							+ " allowed: " + length + ". Skipping");
@@ -475,8 +475,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			} catch (SQLException e) {
 				throw new RuleValidationException(
 						"Could not count distinct values in column "
-								+ rule.tableField.schemaTable() + "."
-								+ rule.tableField.column
+								+ rule.getTableField().schemaTable() + "."
+								+ rule.getTableField().column
 								+ ": " + e.getMessage());
 			}
 		}
@@ -485,14 +485,14 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 
 	private String selectDistinctValuesFromParentAndDependentColumns(Rule rule) {
 		// TODO: why is distinctValuesQuery(rule, originTableField) not used here?
-		TableField tableField = rule.tableField;
+		TableField tableField = rule.getTableField();
 		// rename columns to onlyDistinctValuesXYZ so you can make a union
 		StringBuilder query = new StringBuilder(
 				"select count (distinct onlyDistinctValuesXYZ) from (");
 		query.append("(select distinct ").append(tableField.column)
 		.append(" onlyDistinctValuesXYZ from ").append(tableField.schemaTable())
 		.append(")");
-		for (TableField tf : rule.dependants) {
+		for (TableField tf : rule.getDependants()) {
 			query.append(" union (select distinct ").append(tf.column)
 			.append(" onlyDistinctValuesXYZ from ").append(tf.schemaTable())
 			.append(")");

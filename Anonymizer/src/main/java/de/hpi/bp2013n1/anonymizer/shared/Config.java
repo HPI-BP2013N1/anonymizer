@@ -93,6 +93,42 @@ public class Config {
 		strategyMapping.put(NO_OP_STRATEGY_KEY, NoOperationStrategy.class.getName());
 	}
 	
+	public List<Rule> getRules() {
+		return rules;
+	}
+	
+	public boolean addRule(Rule newRule) {
+		return rules.add(newRule);
+	}
+	
+	public boolean removeRule(Rule aRule) {
+		return rules.remove(aRule);
+	}
+
+	public ConnectionParameters getOriginalDB() {
+		return originalDB;
+	}
+
+	public ConnectionParameters getDestinationDB() {
+		return destinationDB;
+	}
+
+	public ConnectionParameters getTransformationDB() {
+		return transformationDB;
+	}
+
+	public String getSchemaName() {
+		return schemaName;
+	}
+
+	public int getBatchSize() {
+		return batchSize;
+	}
+
+	public Map<String, String> getStrategyMapping() {
+		return strategyMapping;
+	}
+
 	public static Config fromFile(String fileName) throws DependantWithoutRuleException, IOException, MalformedException {
 		Config config = new Config();
 		config.readFromFile(fileName);
@@ -145,7 +181,7 @@ public class Config {
 		if (rules.size() > 0) {
 			TableField newField = new TableField(
 					line.split("#")[0].replaceAll("\\s+", ""), schemaName);
-			rules.get(rules.size() - 1).dependants.add(newField);
+			rules.get(rules.size() - 1).addDependant(newField);
 		} else {
 			throw new DependantWithoutRuleException("Dependant "
 					+ line.trim() + " is not attached to a rule");
@@ -155,14 +191,15 @@ public class Config {
 	void readNewRule(String line) {
 		String[] split = line.split("\\s+", 3);
 
-		Rule newRule = new Rule();
-		newRule.tableField = new TableField(split[0], schemaName);
-		newRule.strategy = split.length > 1 ? split[1] : "";
-		
-		newRule.additionalInfo = "";
-		if(split.length > 2)
-			if(!split[2].startsWith("#"))
-				newRule.additionalInfo = split[2];
+		TableField tableField = new TableField(split[0], schemaName);
+		String strategy = split.length > 1 ? split[1] : "";
+		String additionalInfo = "";
+		if (split.length > 2)
+			if (!split[2].startsWith("#"))
+				additionalInfo = split[2];
+		Rule newRule = new Rule(tableField,
+				strategy,
+				additionalInfo);
 		
 		rules.add(newRule);
 	}
@@ -212,54 +249,6 @@ public class Config {
 		}
 	}
 
-	// Remove all root nodes that are actually dependents of other root nodes
-	// and give a warning
-	public boolean validate() {
-		boolean critical = false;
-		
-		for (int i = 0; i < rules.size();) {
-			Rule rule = rules.get(i);
-			boolean remove = false;
-			
-			// rule must not be dependent
-			for (Rule other : rules) {
-				Iterator<TableField> otherDependantsIterator =
-						other.dependants.iterator();
-				while (otherDependantsIterator.hasNext()) {
-					TableField otherDependent = otherDependantsIterator.next();
-					if (rule.tableField.equals(otherDependent)) {
-						if (rule.strategy.equals(other.strategy)) {
-							configLogger.warning(rule.tableField + " is "
-									+ "dependent on " + other.tableField
-									+ "but also has an own rule applying the same "
-									+ "transformation. Changing transformation "
-									+ "of the latter rule to none.");
-							rule.strategy = NO_OP_STRATEGY_KEY;
-						} else {
-							// TODO: this effectively forbids composed rules A <- B <- C, change it (INNO-151)?
-							configLogger.warning(rule.tableField + " is rule, "
-									+ "but conflicting dependent of " + other.tableField);
-							configLogger.info("Removing dependent entry from " + other.tableField + ".");
-							otherDependantsIterator.remove();
-							continue;
-						}
-					}
-				}
-			}
-			
-			
-			if (remove) {
-				configLogger.info("Removing rule " + rule);
-				rules.remove(i);
-				continue;
-			}
-					
-			i++;
-		}
-		
-		return !critical;
-	}
-
 	public void writeTo(Writer writer) throws IOException {
 		writer.write("# originalDB newDB transformationDB each with username password\n");
 		for (ConnectionParameters parameters : new ConnectionParameters[] {
@@ -284,28 +273,47 @@ public class Config {
 		}
 		writer.write("\n# Table.Field\t\tType\t\tAdditionalInfo\n");
 		for (Rule rule : rules) {
-			if (rule.dependants.isEmpty() && rule.strategy.equals(Config.NO_OP_STRATEGY_KEY))
+			if (rule.getDependants().isEmpty() && rule.getStrategy().equals(NO_OP_STRATEGY_KEY))
 				writer.write('#');
-			writer.write(rule.tableField.toString());
-			if (!rule.strategy.equals(Config.NO_OP_STRATEGY_KEY)) {
+			writer.write(rule.getTableField().toString());
+			if (!rule.getStrategy().equals(NO_OP_STRATEGY_KEY)) {
 				writer.write("\t");
-				writer.write(rule.strategy);
+				writer.write(rule.getStrategy());
 			}
 			
-			if (!rule.additionalInfo.isEmpty()) {
+			if (!rule.getAdditionalInfo().isEmpty()) {
 				writer.write("\t");
-				writer.write(rule.additionalInfo);
+				writer.write(rule.getAdditionalInfo());
 				writer.write("\n");
 			} else
 				writer.write("\n");
 			
-			for (TableField dependent : rule.dependants) {
+			for (TableField dependent : rule.getDependants()) {
 				writer.write("\t" + dependent + "\n");
 			}
 			
-			for (TableField dependent : rule.potentialDependants) {
+			for (TableField dependent : rule.getPotentialDependants()) {
 				writer.write("\t#" + dependent + "\n");
 			}
+		}
+	}
+
+	public Rule addNoOpRuleFor(TableField tableField) {
+		Rule newRule = new Rule(
+				tableField,
+				Config.NO_OP_STRATEGY_KEY, "");
+		rules.add(newRule);
+		return newRule;
+	}
+
+	public void removeNoOpRulesWithoutDependants() {
+		Iterator<Rule> ruleIterator = rules.iterator();
+		while (ruleIterator.hasNext()) {
+			Rule rule = ruleIterator.next();
+			if (!rule.getStrategy().equals(NO_OP_STRATEGY_KEY))
+				continue;
+			if (rule.getDependants().isEmpty() && rule.getPotentialDependants().isEmpty())
+				ruleIterator.remove();
 		}
 	}
 }
