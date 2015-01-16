@@ -237,7 +237,7 @@ public abstract class TestDataFixture implements AutoCloseable {
 	 */
 	protected abstract Iterable<InputStream> getTransformationTearDownSQL();
 
-	protected void setSchema() throws SQLException {
+	public void setSchema() throws SQLException {
 		try (Statement s = originalDbConnection.createStatement()) {
 			s.execute(SQLHelper.setSchemaStatement(config.schemaName, originalDbConnection));
 		}
@@ -252,7 +252,7 @@ public abstract class TestDataFixture implements AutoCloseable {
 		// destinationDbConnection.setSchema(config.schemaName);
 	}
 
-	protected Anonymizer createAnonymizer() {
+	public Anonymizer createAnonymizer() {
 		Anonymizer anonymizer = new Anonymizer(config, scope);
 		anonymizer.useDatabases(originalDbConnection, destinationDbConnection,
 				transformationDbConnection);

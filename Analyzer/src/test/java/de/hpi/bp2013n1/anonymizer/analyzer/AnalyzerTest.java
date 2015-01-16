@@ -36,21 +36,10 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.List;
 
-import org.dbunit.DatabaseUnitException;
-import org.dbunit.database.DatabaseConnection;
-import org.dbunit.database.IDatabaseConnection;
-import org.dbunit.dataset.IDataSet;
-import org.dbunit.dataset.xml.FlatXmlDataSetBuilder;
-import org.dbunit.operation.DatabaseOperation;
-import org.h2.tools.RunScript;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -58,107 +47,47 @@ import org.junit.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import de.hpi.bp2013n1.anonymizer.StandardTestDataFixture;
+import de.hpi.bp2013n1.anonymizer.TestDataFixture;
 import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
 import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
-import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
-import de.hpi.bp2013n1.anonymizer.shared.Scope;
 
 public class AnalyzerTest {
 
-	// TODO: alleviate code duplication with Anonymizer tests
 	static Config config;
-	static Scope scope;
-	static Connection originalDbConnection;
-	static Connection transformationDbConnection;
-	static Connection destinationDbConnection;
 	static File logFile;
 	private Analyzer sut;
+	static TestDataFixture testData;
 	
 	@Before
 	public void setSchema() throws SQLException {
-		staticSetSchema();
-	}
-
-	private static void staticSetSchema() throws SQLException {
-		try (Statement s = originalDbConnection.createStatement()) {
-			s.execute("SET SCHEMA = " + config.schemaName);
-		}
-		// originalDbConnection.setSchema(config.schemaName);
-		try (Statement s = transformationDbConnection.createStatement()) {
-			s.execute("SET SCHEMA = " + config.schemaName);
-		}
-		// transformationDbConnection.setSchema(config.schemaName);
-		try (Statement s = destinationDbConnection.createStatement()) {
-			s.execute("SET SCHEMA = " + config.schemaName);
-		}
-		// destinationDbConnection.setSchema(config.schemaName);
+		testData.setSchema();
 	}
 
 	@BeforeClass
 	public static void setUpDatabases() throws Exception {
-		createDbConnections();
-		populateDatabases();
+		testData = new StandardTestDataFixture();
+		testData.populateDatabases();
 	}
 	
 	@Before
-	public void createAnalyzer() throws Exception {
+	public void createAnalyzerAndImportData() throws Exception {
 		readConfig();
-		sut = new Analyzer(originalDbConnection, config, scope);
+		sut = new Analyzer(testData.getOriginalDbConnection(), config,
+				testData.getScope());
+		testData.populateTables(config.schemaName);
 	}
 	
-	private static void createDbConnections() throws Exception {
-		readConfig();
-		scope = new Scope();
-		scope.readFromURL(AnalyzerTest.class.getResource("/de/hpi/bp2013n1/anonymizer/testscope.txt"));
-		originalDbConnection = DatabaseConnector.connect(config.originalDB);
-		transformationDbConnection = DatabaseConnector.connect(config.transformationDB);
-		destinationDbConnection = DatabaseConnector.connect(config.destinationDB);
-	}
-
 	private static void readConfig() throws Exception {
 		config = new Config();
 		config.readFromURL(AnalyzerTest.class.getResource(
 				"AnalyzerTestConfig.txt"));
 	}
 
-	private static void populateDatabases() throws DatabaseUnitException,
-			IOException, SQLException {
-		executeDdlScript("/de/hpi/bp2013n1/anonymizer/testschema.ddl.sql", originalDbConnection);
-		executeDdlScript("/de/hpi/bp2013n1/anonymizer/testschema.ddl.sql", destinationDbConnection);
-		executeDdlScript("/de/hpi/bp2013n1/anonymizer/testpseudonymsschema.ddl.sql", transformationDbConnection);
-	}
-
-	@Before
-	public void importData() throws DatabaseUnitException, IOException,
-			SQLException {
-		importData(originalDbConnection, config.schemaName, "/de/hpi/bp2013n1/anonymizer/testdata.xml");
-		importData(transformationDbConnection, config.schemaName,
-				"/de/hpi/bp2013n1/anonymizer/testpseudonyms.xml");
-	}
-
-	private static void executeDdlScript(String scriptFileName,
-			Connection dbConnection) throws SQLException, IOException {
-		try (InputStream ddlStream = AnalyzerTest.class
-				.getResourceAsStream(scriptFileName);
-				InputStreamReader ddlReader = new InputStreamReader(ddlStream)) {
-			RunScript.execute(dbConnection, ddlReader);
-		}
-	}
-
-	private static void importData(Connection connection, String schemaName,
-			String dataSetFilename) throws DatabaseUnitException, IOException,
-			SQLException {
-		IDatabaseConnection db = new DatabaseConnection(connection, schemaName);
-		FlatXmlDataSetBuilder dataSetBuilder = new FlatXmlDataSetBuilder();
-		IDataSet data = dataSetBuilder.build(AnalyzerTest.class
-				.getResourceAsStream(dataSetFilename));
-		DatabaseOperation.CLEAN_INSERT.execute(db, data);
-	}
-	
 	@Test
 	public void outputFileIsCreated() throws IOException, FatalError {
 		File outputFile = runAnalyzer();
@@ -210,7 +139,7 @@ public class AnalyzerTest {
 		// this is not correct regarding the test schema but it is a valid config
 		validatedRule.addDependant(secondValidDependant);
 		sut.validateExistingDependants(validatedRule,
-				originalDbConnection.getMetaData());
+				testData.getOriginalDbConnection().getMetaData());
 		assertThat(validatedRule.getDependants(),
 				contains(firstValidDependant, secondValidDependant));
 	}
@@ -221,7 +150,7 @@ public class AnalyzerTest {
 	
 	@Test
 	public void foreignKeyDependantsTest() throws SQLException {
-		DatabaseMetaData metaData = originalDbConnection.getMetaData();
+		DatabaseMetaData metaData = testData.getOriginalDbConnection().getMetaData();
 		TableField originField = tableField("VISITOR.NAME");
 		Rule plainRule = new Rule(originField, "P", "");
 		config.rules.add(plainRule);
@@ -242,7 +171,7 @@ public class AnalyzerTest {
 	
 	@Test
 	public void possibleDependantsTest() throws SQLException {
-		DatabaseMetaData metaData = originalDbConnection.getMetaData();
+		DatabaseMetaData metaData = testData.getOriginalDbConnection().getMetaData();
 		TableField originField = tableField("VISITOR.NAME");
 		TableField dependentField = tableField("VISIT.VISITORNAME");
 		List<TableField> matchingFields = Lists.newArrayList(
