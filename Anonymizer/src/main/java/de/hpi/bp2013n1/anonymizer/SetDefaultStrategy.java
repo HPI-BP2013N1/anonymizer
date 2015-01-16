@@ -48,7 +48,7 @@ public class SetDefaultStrategy extends TransformationStrategy {
 	@Override
 	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row) {
 		if (rule.getAdditionalInfo().equals("<NULL>"))
-			return null;
+			return Lists.newArrayList((String) null);
 		return Lists.newArrayList(rule.getAdditionalInfo());
 	}
 
@@ -61,20 +61,30 @@ public class SetDefaultStrategy extends TransformationStrategy {
 	@Override
 	public boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException {
+		boolean defaultIsNull = rule.getAdditionalInfo().equals("<NULL>");
 		// check for defaults given where null not allowed
-		if (!nullAllowed && rule.getAdditionalInfo().equals("<NULL>")) {
+		if (!nullAllowed && defaultIsNull) {
 			logger.severe("This field requires a non-null value. Provide "
-					+ "another default value. Skipping");
+					+ "a different default value.");
 			return false;
 		}
 		
-		// check for default is valid
+		// check whether default is valid
 		if (SQLTypes.isCharacterType(type)
 				&& rule.getAdditionalInfo().length() != 0
 				&& rule.getAdditionalInfo().length() > length) {
 			logger.severe("Provided default value is longer than maximum field "
 					+ "length of " + length + ". Skipping");
 			return false;
+		}
+		if (SQLTypes.isIntegerType(type) && !defaultIsNull) {
+			try {
+				Integer.parseInt(rule.getAdditionalInfo());
+			} catch (NumberFormatException e) {
+				logger.severe("Provided default value for an integer column"
+						+ " must be an integer value");
+				return false;
+			}
 		}
 		return true;
 	}
