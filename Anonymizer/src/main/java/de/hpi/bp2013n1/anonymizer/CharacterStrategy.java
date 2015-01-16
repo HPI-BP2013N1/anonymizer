@@ -24,10 +24,7 @@ package de.hpi.bp2013n1.anonymizer;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -38,6 +35,8 @@ import java.util.logging.Logger;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import de.hpi.bp2013n1.anonymizer.PseudonymizeStrategy.PseudonymsTableProxy;
+import de.hpi.bp2013n1.anonymizer.db.ColumnDatatypeDescription;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.TableRuleMap;
@@ -48,6 +47,7 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 public class CharacterStrategy extends TransformationStrategy {
 
 	private Map<Rule, Map<Character, Character>> characterMappings = Maps.newHashMap();
+	private Map<Rule, PseudonymsTableProxy> pseudonymTables = Maps.newHashMap();
 	private String ignoredCharacters = "";
 	
 	private Logger characterLogger = Logger.getLogger(CharacterStrategy.class.getName());
@@ -60,6 +60,11 @@ public class CharacterStrategy extends TransformationStrategy {
 	private String characterMappingTableName(TableField originField) {
 		return originField.table + "_" + originField.column + "_CHARACTERS";
 	}
+	
+	private TableField characterMappingTable(TableField originField) {
+		return new TableField(characterMappingTableName(originField), null,
+				originField.getSchema());
+	}
 
 	@Override
 	public void setUpTransformation(Collection<Rule> rules)
@@ -68,15 +73,26 @@ public class CharacterStrategy extends TransformationStrategy {
 		for (Rule configRule : rules)
 			setUpTransformation(configRule);
 	}
+	
+	private final ColumnDatatypeDescription singleCharacterColumnDesc =
+			new ColumnDatatypeDescription(java.sql.Types.CHAR, 1);
+	
+	// stubbed in tests
+	PseudonymsTableProxy makePseudonymsTableProxy(TableField pseudonymsTableSite,
+			ColumnDatatypeDescription columnType, Connection dbConnection) {
+		return new PseudonymsTableProxy(pseudonymsTableSite, columnType, dbConnection);
+	}
 
 	public void setUpTransformation(Rule rule)
 			throws TransformationTableCreationException, FetchPseudonymsFailedException,
 			TransformationKeyCreationException {
+		PseudonymsTableProxy pseudonymsTable = getPseudonymsTableFor(rule);
 		try {
-			if (!translationTableExists(rule.getTableField()))
-				createPseudonymsTable(rule.getTableField());
-		} catch (SQLException e) {
-			throw new TransformationTableCreationException(e.getMessage());
+			pseudonymsTable.createIfNotExists();
+		} catch (SQLException e1) {
+			throw new TransformationTableCreationException(
+					"Could not check if pseudonyms table for Rule "
+							+ rule + " exists.", e1);
 		}
 		Map<Character, Character> newCharacterMapping;
 		try {
@@ -85,22 +101,24 @@ public class CharacterStrategy extends TransformationStrategy {
 			throw new FetchPseudonymsFailedException(e.getMessage());
 		}
 		try {
-			insertNewCharacterMapping(rule, newCharacterMapping);
+			pseudonymsTable.insertNewPseudonyms(newCharacterMapping);
 		} catch (SQLException e) {
-			throw new TransformationKeyCreationException(e.getMessage());
+			throw new TransformationKeyCreationException(
+					"Could not insert new character pseudonyms in " +
+							pseudonymsTable.getTableSite(), e);
 		}
+		characterMappings.get(rule).putAll(newCharacterMapping);
 	}
 
-	private boolean translationTableExists(TableField translatedField)
-			throws SQLException {
-		try (ResultSet tableResultSet =
-			transformationDatabase.getMetaData().getTables(
-					null,
-					translatedField.schema,
-					characterMappingTableName(translatedField),
-					new String[] { "TABLE" })) {
-			return tableResultSet.next(); // next returns true if a row is available
-		}
+	private PseudonymsTableProxy getPseudonymsTableFor(Rule rule) {
+		if (pseudonymTables.containsKey(rule))
+			return pseudonymTables.get(rule);
+		PseudonymsTableProxy pseudonymsTable = makePseudonymsTableProxy(
+				characterMappingTable(rule.getTableField()),
+				singleCharacterColumnDesc,
+				transformationDatabase);
+		pseudonymTables.put(rule, pseudonymsTable);
+		return pseudonymsTable;
 	}
 
 	protected Map<Character, Character> fillKeyLists(Rule rule)
@@ -172,65 +190,15 @@ public class CharacterStrategy extends TransformationStrategy {
 		return newCharacterMapping;
 	}
 
-	protected void createPseudonymsTable(TableField tableField)
-			throws TransformationTableCreationException {
-		String characterMappingSchemaTable =
-				tableField.schema + "." + characterMappingTableName(tableField);
-		try (Statement transformationStatement = transformationDatabase.createStatement()) {
-			transformationStatement.execute("CREATE TABLE "
-					+ characterMappingSchemaTable
-					+ " (oldValue char(1) NOT NULL, "
-					+ "newValue char(1) NOT NULL, "
-					+ "PRIMARY KEY(oldValue))");
-		} catch (SQLException e) {
-			if (e.getErrorCode() == -601) {
-				characterLogger.info("Creating table " + characterMappingSchemaTable +
-						" failed - already existed");
-			} else {
-				throw new TransformationTableCreationException(""
-						+ "Could not create character transformation table "
-						+ characterMappingSchemaTable
-						+ " because of an unknown error.");
-			}
-		}
-	}
-
-	private void insertNewCharacterMapping(Rule rule,
-			Map<Character, Character> newCharacterMapping)
+	private Map<Character, Character> fetchCharacterMapping(Rule rule)
 			throws SQLException {
-		try (PreparedStatement preparedTranslateStmt =
-				transformationDatabase.prepareStatement(
-						"INSERT INTO " + rule.getTableField().schema + "."
-						+ characterMappingTableName(rule.getTableField())
-						+ " VALUES (?,?)")) {
-			for (Map.Entry<Character, Character> pair : newCharacterMapping.entrySet()) {
-				preparedTranslateStmt.setString(1, String.valueOf(pair.getKey()));
-				preparedTranslateStmt.setString(2, String.valueOf(pair.getValue()));
-				preparedTranslateStmt.addBatch();
-			}
-			preparedTranslateStmt.executeBatch();
-			transformationDatabase.commit();
-			preparedTranslateStmt.clearBatch();
-		}
-		characterMappings.get(rule).putAll(newCharacterMapping);
-	}
-
-	private Map<Character, Character> fetchCharacterMapping(Rule rule) throws SQLException {
-		Map<Character, Character> characterMapping = characterMappings.get(rule);
-		if (characterMapping == null) {
-			characterMapping = Maps.newHashMap();
-			characterMappings.put(rule, characterMapping);
-		}
-		characterMapping.clear();
-		try (PreparedStatement selectStatement = transformationDatabase.prepareStatement(
-				"SELECT * FROM " + rule.getTableField().schema + "."
-						+ characterMappingTableName(rule.getTableField()));
-				ResultSet mappingResultSet = selectStatement.executeQuery()) {
-			while (mappingResultSet.next())
-				characterMapping.put(
-						mappingResultSet.getString(1).charAt(0),
-						mappingResultSet.getString(2).charAt(0));
-		}
+		Map<String, String> mappingInDatabase =
+				getPseudonymsTableFor(rule).fetch();
+		// there is no "single-character" SQL datatype, so we can only fetch strings
+		Map<Character, Character> characterMapping = Maps.newHashMap();
+		for (Map.Entry<String, String> entry : mappingInDatabase.entrySet())
+			characterMapping.put(entry.getKey().charAt(0), entry.getValue().charAt(0));
+		characterMappings.put(rule, characterMapping);
 		return characterMapping;
 	}
 	
@@ -243,7 +211,9 @@ public class CharacterStrategy extends TransformationStrategy {
 	}
 
 	@Override
-	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row) throws TransformationKeyNotFoundException {
+	public List<String> transform(Object oldValue, Rule rule,
+			ResultSetRowReader row) throws TransformationKeyNotFoundException,
+			TransformationFailedException {
 		checkArgument(oldValue instanceof String || oldValue == null,
 				getClass() + " should transform " + oldValue
 				+ " but can only opeprate on Strings");
@@ -252,32 +222,53 @@ public class CharacterStrategy extends TransformationStrategy {
 						rule.getAdditionalInfo().toCharArray()));
 	}
 
-	protected String transform(String oldValue, Rule rule,
-			char[] pattern) throws TransformationKeyNotFoundException {
+	protected String transform(String oldValue, Rule rule, char[] pattern)
+			throws TransformationKeyNotFoundException,
+			TransformationFailedException {
 		StringBuilder newValue = new StringBuilder();
 		if (oldValue == null)
 			return oldValue;
 		for (int i = 0; i < pattern.length; i++) {
-			char c = pattern[i];
-			switch (c) {
+			final char patternChar = pattern[i];
+			final char originalChar = oldValue.charAt(i);
+			switch (patternChar) {
 			case 'P':
-				if (ignoredCharacters.indexOf(oldValue.charAt(i)) != -1) {
-					newValue.append(oldValue.charAt(i));
+				if (ignoredCharacters.indexOf(originalChar) != -1) {
+					newValue.append(originalChar);
 					break;
 				}
-					
-				Character newChar = characterMappings.get(rule).get(oldValue.charAt(i));
+				Character newChar = getPseudonymCharacterFor(originalChar, rule);
 				if (newChar == null)
 					throw new TransformationKeyNotFoundException(
-							"No new char found for char." + oldValue.charAt(i));
+							"Could not find pseudonym for character " + originalChar);
 				newValue.append(newChar);
 				break;
 			default:
-				newValue.append(oldValue.charAt(i));
+				newValue.append(originalChar);
 				break;
 			}
 		}
 		return newValue.toString();
+	}
+
+	private Character getPseudonymCharacterFor(char originalChar, Rule rule) throws TransformationKeyNotFoundException,
+			TransformationFailedException {
+		Map<Character, Character> mapping = characterMappings.get(rule);
+		try {
+			if (mapping == null) {
+				return getPseudonymsTableFor(rule).fetchOne(originalChar);
+			} else {
+				Character newChar = mapping.get(originalChar);
+				if (newChar == null) {
+					return getPseudonymsTableFor(rule).fetchOne(originalChar);
+				}
+				return newChar;
+			}
+		} catch (SQLException e) {
+			throw new TransformationFailedException(
+					"Could not retrieve pseudonym for character " + e,
+					e);
+		}
 	}
 
 	@Override

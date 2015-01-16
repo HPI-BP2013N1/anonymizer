@@ -79,6 +79,10 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			this.database = database;
 		}
 		
+		public TableField getTableSite() {
+			return tableSpec;
+		}
+		
 		public boolean exists() throws SQLException {
 			try (ResultSet tableResult = database.getMetaData().getTables(
 					null, tableSpec.schema, tableSpec.table, new String[] { "TABLE" })) {
@@ -98,6 +102,11 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 						"Creation of pseudonyms table " + tableSpec.schemaTable()
 						+ " failed.", e);
 			}
+		}
+		
+		public void createIfNotExists() throws SQLException, TransformationTableCreationException {
+			if (!exists())
+				create();
 		}
 
 		@SuppressWarnings("unchecked")
