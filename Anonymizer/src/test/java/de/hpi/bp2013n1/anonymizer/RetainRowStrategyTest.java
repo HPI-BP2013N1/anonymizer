@@ -38,6 +38,8 @@ import org.junit.Test;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.RuleValidationException;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.TransformationFailedException;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 
 public class RetainRowStrategyTest {
@@ -48,7 +50,7 @@ public class RetainRowStrategyTest {
 
 	@Before
 	public void setUpRetainStrategyAndRetainService()
-			throws ClassNotFoundException, IOException, SQLException {
+			throws ClassNotFoundException, IOException, SQLException, DependantWithoutRuleException, MalformedException {
 		testData = new StandardTestDataFixture(
 				StandardTestDataFixture.makeStubConfig(), null);
 		Anonymizer anonymizerMock = mock(Anonymizer.class);

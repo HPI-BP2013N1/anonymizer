@@ -102,9 +102,9 @@ public abstract class TestDataFixture implements AutoCloseable {
 	}
 
 	public TestDataFixture(Config config, Scope scope)
-			throws ClassNotFoundException, IOException, SQLException {
-		this.config = config;
-		this.scope = scope;
+			throws ClassNotFoundException, IOException, SQLException, DependantWithoutRuleException, MalformedException {
+		this.config = config != null ? config : loadConfig();
+		this.scope = scope != null ? scope : loadScope();
 		createDbConnections();
 	}
 
@@ -295,10 +295,20 @@ public abstract class TestDataFixture implements AutoCloseable {
 
 	protected void readConfigAndScope() throws IOException,
 			DependantWithoutRuleException, MalformedException {
-		config = new Config();
+		config = loadConfig();
+		scope = loadScope();
+	}
+	
+	public Config loadConfig() throws IOException, DependantWithoutRuleException, MalformedException {
+		Config config = new Config();
 		config.readFromURL(getConfigURL());
-		scope = new Scope();
+		return config;
+	}
+	
+	public Scope loadScope() throws IOException {
+		Scope scope = new Scope();
 		scope.readFromURL(getScopeURL());
+		return scope;
 	}
 
 }

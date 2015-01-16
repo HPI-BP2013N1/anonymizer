@@ -21,10 +21,13 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.*;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.RETURNS_SMART_NULLS;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -41,6 +44,8 @@ import com.google.common.collect.Lists;
 
 import de.hpi.bp2013n1.anonymizer.RowRetainService.InsertRetainMarkFailed;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 
 public class RowRetainServiceTest {
 
@@ -73,12 +78,12 @@ public class RowRetainServiceTest {
 	}
 	
 	@Test
-	public void testRetainCurrentRow() throws ClassNotFoundException, IOException, SQLException, InsertRetainMarkFailed {
+	public void testRetainCurrentRow() throws ClassNotFoundException, IOException, SQLException, InsertRetainMarkFailed, DependantWithoutRuleException, MalformedException {
 		Config config = StandardTestDataFixture.makeStubConfig();
 		try (TestDataFixture stub = new StandardTestDataFixture(config, null)) {
-			sut = new RowRetainService(stub.originalDbConnection, 
+			sut = new RowRetainService(stub.originalDbConnection,
 					stub.transformationDbConnection);
-			org.h2.tools.RunScript.execute(stub.originalDbConnection, 
+			org.h2.tools.RunScript.execute(stub.originalDbConnection,
 					new StringReader("CREATE SCHEMA S; "
 							+ "CREATE TABLE S.T (A VARCHAR(20) PRIMARY KEY); "
 							+ "CREATE TABLE S.T2 (A VARCHAR(20) PRIMARY KEY)"));
@@ -93,7 +98,7 @@ public class RowRetainServiceTest {
 			assertThat(sut.currentRowShouldBeRetained("S", "T2", row), is(false));
 			assertThat(sut.currentRowShouldBeRetained("S", "T", otherRow), is(false));
 
-			sut = new RowRetainService(stub.originalDbConnection, 
+			sut = new RowRetainService(stub.originalDbConnection,
 					stub.transformationDbConnection);
 			assertThat("Retain mark should be persistent in the database",
 					sut.currentRowShouldBeRetained("S", "T", row), is(true));

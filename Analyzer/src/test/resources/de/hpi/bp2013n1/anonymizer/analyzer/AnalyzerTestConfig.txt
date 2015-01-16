@@ -1,7 +1,7 @@
 # originalDB newDB transformationDB each with username password
-jdbc:h2:mem:original name pw
-jdbc:h2:mem:destination name pw
-jdbc:h2:mem:transformation name pw
+jdbc:h2:mem: name pw
+jdbc:h2:mem: name pw
+jdbc:h2:mem: name pw
 # schema batchSize
 ORIGINAL 10000
 

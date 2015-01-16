@@ -46,7 +46,7 @@ public class StandardTestDataFixture extends TestDataFixture {
 	}
 
 	public StandardTestDataFixture(Config config, Scope scope)
-			throws ClassNotFoundException, IOException, SQLException {
+			throws ClassNotFoundException, IOException, SQLException, DependantWithoutRuleException, MalformedException {
 		super(config, scope);
 	}
 
