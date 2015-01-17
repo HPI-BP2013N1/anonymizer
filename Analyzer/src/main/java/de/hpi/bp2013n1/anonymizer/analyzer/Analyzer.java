@@ -167,6 +167,8 @@ public class Analyzer {
 								tablesResultSet.getString("TABLE_NAME"),
 								primaryKeyResultSet.getString("COLUMN_NAME"),
 								tablesResultSet.getString("TABLE_SCHEM"));
+						if (!scope.tables.contains(pkTableField.getTable()))
+							continue;
 						for (Rule ruleForTable : rulesForTable) {
 							if (ruleForTable.getTableField().equals(pkTableField))
 								continue primaryKeyColumnsLoop;
