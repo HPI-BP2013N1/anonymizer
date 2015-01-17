@@ -191,6 +191,9 @@ public abstract class TestDataFixture implements AutoCloseable {
 		for (InputStream tearDownStream : getTearDownSQL()) {
 			executeDdlScript(tearDownStream, destinationDbConnection);
 		}
+		for (InputStream tearDownStream : getTransformationTearDownSQL()) {
+			executeDdlScript(tearDownStream, transformationDbConnection);
+		}
 	}
 
 	/**
