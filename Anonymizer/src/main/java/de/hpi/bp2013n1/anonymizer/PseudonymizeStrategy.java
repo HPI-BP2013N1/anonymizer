@@ -133,7 +133,10 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			try (PreparedStatement selectStatement = database.prepareStatement(
 					"SELECT " + NEWVALUE + " FROM " + tableSpec.schemaTable()
 					+ " WHERE " + OLDVALUE + " = ?")) {
-				selectStatement.setObject(1, originalValue);
+				if (originalValue instanceof String || originalValue instanceof Character)
+					selectStatement.setString(1, originalValue.toString());
+				else
+					selectStatement.setObject(1, originalValue);
 				try (ResultSet resultSet = selectStatement.executeQuery()) {
 					if (!resultSet.next())
 						throw new TransformationKeyNotFoundException(
@@ -202,9 +205,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			pseudonymsTable = new PseudonymsTableProxy(
 					getPseudonymsTable(originTableField),
 					originTableFieldDatatype, transformationDatabase);
-			if (!pseudonymsTable.exists()) {
-				pseudonymsTable.create();
-			}
+			pseudonymsTable.createIfNotExists();
 		} catch (SQLException e1) {
 			throw new TransformationTableCreationException("Could not prepare "
 					+ "the creation of a pseudonyms table due to SQL errors", e1);

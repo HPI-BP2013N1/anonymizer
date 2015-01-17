@@ -266,7 +266,7 @@ public class CharacterStrategy extends TransformationStrategy {
 			}
 		} catch (SQLException e) {
 			throw new TransformationFailedException(
-					"Could not retrieve pseudonym for character " + e,
+					"Could not retrieve pseudonym for character " + originalChar,
 					e);
 		}
 	}
