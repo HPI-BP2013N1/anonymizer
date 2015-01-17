@@ -37,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import java.util.TreeMap;
 import java.util.logging.Logger;
 
 import com.google.common.base.Strings;
@@ -58,7 +57,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	static final int NUMBER_OF_AVAILABLE_CHARS = 2 * 26 + 10;
 	char[] shuffledCharPool = shuffledChars();
 	char[] shuffledNumbersPool = shuffledNumberArray();
-	HashMap<String, TreeMap<String, String>> cachedTransformations;
+	Map<Rule, Map<String, String>> cachedTransformations = Maps.newHashMap();
+	private Map<Rule, PseudonymsTableProxy> pseudonymTables = Maps.newHashMap();
 	PreparedStatement newDBStmt;
 	
 	public static class PseudonymsTableProxy {
@@ -180,7 +180,6 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	public PseudonymizeStrategy(Anonymizer anonymizer, Connection origDB,
 			Connection translateDB) throws SQLException {
 		super(anonymizer, origDB, translateDB);
-		cachedTransformations = new HashMap<>();
 	}
 
 	@Override
@@ -202,14 +201,13 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 				ColumnDatatypeDescription.fromMetaData(
 						originTableField,
 						originalDatabase);
-			pseudonymsTable = new PseudonymsTableProxy(
-					getPseudonymsTable(originTableField),
-					originTableFieldDatatype, transformationDatabase);
+			pseudonymsTable = getPseudonymsTableFor(originTableField, originTableFieldDatatype);
 			pseudonymsTable.createIfNotExists();
 		} catch (SQLException e1) {
 			throw new TransformationTableCreationException("Could not prepare "
 					+ "the creation of a pseudonyms table due to SQL errors", e1);
 		}
+		pseudonymTables.put(rule, pseudonymsTable);
 		try {
 			String distinctValuesQuery = distinctValuesQuery(rule,
 					originTableField);
@@ -240,6 +238,30 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		}
 	}
 
+	private PseudonymsTableProxy getPseudonymsTableFor(
+			TableField originTableField,
+			ColumnDatatypeDescription originTableFieldDatatype) {
+		return new PseudonymsTableProxy(
+				getPseudonymsTableSite(originTableField),
+				originTableFieldDatatype, transformationDatabase);
+	}
+
+	public PseudonymsTableProxy getPseudonymsTableFor(Rule rule)
+			throws SQLException {
+		if (pseudonymTables.containsKey(rule))
+			return pseudonymTables.get(rule);
+		TableField originTableField = rule.getTableField();
+		ColumnDatatypeDescription originTableFieldDatatype;
+		originTableFieldDatatype =
+				ColumnDatatypeDescription.fromMetaData(
+						originTableField,
+						originalDatabase);
+		PseudonymsTableProxy pseudonymsTableForRule =
+				getPseudonymsTableFor(originTableField, originTableFieldDatatype);
+		pseudonymTables.put(rule, pseudonymsTableForRule);
+		return pseudonymsTableForRule;
+	}
+	
 	private Set<Object> determinateNewValuesInDatabase(
 			Map<Object, Object> existingPseudonyms, String distinctValuesQuery) throws SQLException {
 		HashSet<Object> newValues = new HashSet<Object>();
@@ -274,12 +296,15 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		return distinctValuesQueryBuilder.toString();
 	}
 
-	public static TableField getPseudonymsTable(TableField transformedField) {
-		// TODO: move code from TableField.translationTableName to PseudonymizeStrategy
-		return new TableField(transformedField.translationTableName(), null,
-				transformedField.schema);
+	public static String pseudonymsTableName(TableField originalTableField) {
+		 return originalTableField.getTable() + "_" + originalTableField.getColumn();
 	}
-	
+
+	public static TableField getPseudonymsTableSite(TableField transformedField) {
+		return new TableField(pseudonymsTableName(transformedField), null,
+				transformedField.getSchema());
+	}
+
 	public static class PseudonymGenerator {
 		private char[] shuffledCharPool = shuffledChars();
 		private char[] shuffledNumbersPool = shuffledNumberArray();
@@ -392,54 +417,33 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		if ((oldValue.replaceAll(" +$", "").length() == 0))
 			return "";
 		
-		String result = cachedTransformations.get(
-				rule.getTableField().schemaQualifiedTranslationTableName()).get(
-						oldValue.replaceAll(" +$", ""));
-		
-		if (result != null)
+		Map<String, String> cachedPseudonyms = cachedTransformations.get(
+				getPseudonymsTableSite(rule.getTableField()).schemaTable());
+		if (cachedPseudonyms == null) {
+			return getPseudonymsTableFor(rule).fetchOne(oldValue);
+		} else {
+			String result = cachedPseudonyms.get(
+					oldValue.replaceAll(" +$", ""));
+			if (result == null)
+				return getPseudonymsTableFor(rule).fetchOne(oldValue);
 			return result;
-		else {
-			throw new TransformationKeyNotFoundException("Value not found");
 		}
 	}
 
-	/**
-	 * Attention: removes elements from given argument
-	 * @param translationTableNames
-	 * @throws SQLException
-	 */
-	public void fetchTranslations(ArrayList<String> translationTableNames)
+	public void fetchTranslations(Collection<Rule> pseudonymizationRules)
 			throws SQLException {
-		cachedTransformations.keySet().retainAll(translationTableNames);
-		translationTableNames.removeAll(cachedTransformations.keySet());
-		for (String tableName : translationTableNames) {
-			String query = "SELECT * FROM " + tableName;
-			try (Statement translateDbStatement = transformationDatabase.createStatement();
-					ResultSet cacheSet = translateDbStatement.executeQuery(query)) {
-				TreeMap<String, String> cachedTranslations = new TreeMap<>();
-				cachedTransformations.put(tableName, cachedTranslations);
-
-				while (cacheSet.next()) {
-					cachedTranslations.put(
-							cacheSet.getString("oldValue").replaceAll(" +$", ""),
-							cacheSet.getString("newValue"));
-				}
-			}
+		cachedTransformations.keySet().retainAll(pseudonymizationRules);
+		pseudonymizationRules = new ArrayList<>(pseudonymizationRules);
+		pseudonymizationRules.removeAll(cachedTransformations.keySet());
+		for (Rule rule : pseudonymizationRules) {
+			cachedTransformations.put(rule,
+					getPseudonymsTableFor(rule).<String>fetch());
 		}
 	}
 
 	@Override
 	public void prepareTableTransformation(TableRuleMap affectedColumnEntries) throws SQLException {
-		// TODO: refactor this with PseudonymsTableProxy
-		fetchTranslations(collectTranslationTableNamesFor(affectedColumnEntries));
-	}
-
-	private ArrayList<String> collectTranslationTableNamesFor(TableRuleMap rules) {
-		ArrayList<String> result = new ArrayList<String>();
-		for (Rule configRule : rules.getRules()) {
-			result.add(configRule.getTableField().schemaQualifiedTranslationTableName());
-		}
-		return result;
+		fetchTranslations(affectedColumnEntries.getRules());
 	}
 
 	private boolean isSupportedType(int type) {

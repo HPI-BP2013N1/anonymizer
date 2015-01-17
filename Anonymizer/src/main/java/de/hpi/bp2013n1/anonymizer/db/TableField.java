@@ -86,19 +86,6 @@ public class TableField implements Comparable {
 		return (schema + "." + table);
 	}
 	
-	public String translationTableName() {
-		 return table + "_" + column;
-	}
-	
-	/**
-	 * Returns the schema qualified name of the table in the translations
-	 * database where the mappings for this table field are stored.
-	 * @return schema.table_column
-	 */
-	public String schemaQualifiedTranslationTableName() {
-		return schema + "." + translationTableName();
-	}
-	
 	@Override
 	public int hashCode() {
 		final int prime = 31;
