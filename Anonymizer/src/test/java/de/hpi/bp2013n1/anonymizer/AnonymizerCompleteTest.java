@@ -21,8 +21,12 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.io.File;
 import java.sql.PreparedStatement;
@@ -64,6 +68,7 @@ public class AnonymizerCompleteTest {
 		addNewRow();
 		logFile = File.createTempFile("anonymizer-test-config-output", null);
 		logFile.delete();
+		logFile.deleteOnExit();
 		Anonymizer.setUpLogging(logFile.getPath());
 		Anonymizer anonymizer = testData.createAnonymizer();
 		anonymizer.run();
@@ -106,11 +111,7 @@ public class AnonymizerCompleteTest {
 	public static void closeConnectionsAndDeleteFiles() throws SQLException {
 		testData.setSchema();
 		removeNewRows();
-		try {
-			testData.closeConnections();
-		} finally {
-			logFile.delete();
-		}
+		testData.closeConnections();
 	}
 
 	private static void addNewRow() throws SQLException {
@@ -127,14 +128,14 @@ public class AnonymizerCompleteTest {
 	}
 
 	private static void removeNewRows() throws SQLException {
-		try (PreparedStatement deleteOriginalStatement = 
+		try (PreparedStatement deleteOriginalStatement =
 				testData.originalDbConnection
 				.prepareStatement("DELETE FROM VISITOR WHERE NAME = ? AND SURNAME = ? "
 						+ "AND BIRTHDATE = '19740114'");
-				PreparedStatement deleteSurnameTranslationStatement = 
+				PreparedStatement deleteSurnameTranslationStatement =
 						testData.transformationDbConnection
 						.prepareStatement("DELETE FROM VISITOR_SURNAME WHERE OLDVALUE = ?");
-				PreparedStatement deleteZipCodeTranslationStatement = 
+				PreparedStatement deleteZipCodeTranslationStatement =
 						testData.transformationDbConnection
 						.prepareStatement("DELETE FROM VISITOR_ZIPCODE WHERE OLDVALUE = ?")) {
 			deleteOriginalStatement.setString(1, NEW_NAME);
@@ -178,10 +179,10 @@ public class AnonymizerCompleteTest {
 
 	@Test
 	public void createdNewPseudonymForNewRow() throws SQLException {
-		try (PreparedStatement selectPseudonymStatement = 
+		try (PreparedStatement selectPseudonymStatement =
 				testData.transformationDbConnection
 				.prepareStatement("SELECT OLDVALUE, NEWVALUE FROM VISITOR_SURNAME WHERE OLDVALUE = ?");
-				PreparedStatement selectDestinationRowStatement = 
+				PreparedStatement selectDestinationRowStatement =
 						testData.destinationDbConnection
 						.prepareStatement("SELECT NAME, ZIPCODE FROM VISITOR WHERE SURNAME = ?")) {
 			selectPseudonymStatement.setString(1, NEW_SURNAME);
@@ -212,14 +213,14 @@ public class AnonymizerCompleteTest {
 	@Test
 	public void checkEqualRowCounts() throws SQLException {
 		String schema = "ORIGINAL";
-		for (String tableName : Lists.newArrayList("VISITOR", "CINEMA", 
+		for (String tableName : Lists.newArrayList("VISITOR", "CINEMA",
 				"GREATMOVIES", "VISIT")) {
 			String schemaTable = schema + "." + tableName;
 			String countQuery = "SELECT COUNT(*) FROM " + schemaTable;
-			try (PreparedStatement selectOriginalCountStatement = 
+			try (PreparedStatement selectOriginalCountStatement =
 					testData.originalDbConnection
 					.prepareStatement(countQuery);
-					PreparedStatement selectAnonymizedCountStatement = 
+					PreparedStatement selectAnonymizedCountStatement =
 							testData.destinationDbConnection
 							.prepareStatement(countQuery)) {
 				try (ResultSet originalCountResultSet = selectOriginalCountStatement
