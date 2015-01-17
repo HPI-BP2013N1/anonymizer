@@ -62,6 +62,7 @@ import de.hpi.bp2013n1.anonymizer.db.BatchOperation;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.InvalidConfigurationException;
 import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
@@ -146,6 +147,8 @@ public class Anonymizer {
 	public void run() throws FatalError {
 		try {
 			loadAndInstantiateStrategies();
+		} catch (InvalidConfigurationException e) {
+			throw new FatalError(e);
 		} catch (ClassNotFoundException e) {
 			anonymizerLogger.severe("Could not load strategy: " + e.getMessage());
 			throw new FatalError(e);
@@ -233,7 +236,7 @@ public class Anonymizer {
 	public void loadAndInstantiateStrategies() throws ClassNotFoundException,
 			NoSuchMethodException, InstantiationException,
 			IllegalAccessException, InvocationTargetException,
-			ClassCastException {
+			ClassCastException, InvalidConfigurationException {
 		anonymizerLogger.info("Loading transformation strategies.");
 		for (Map.Entry<String, String> strategiesEntry : config.getStrategyMapping().entrySet()) {
 			String strategy = strategiesEntry.getKey();
@@ -248,6 +251,9 @@ public class Anonymizer {
 		}
 		for (Rule rule : config.rules) {
 			String strategy = rule.getStrategy();
+			if (!strategyByName.containsKey(strategy))
+				throw new Config.InvalidConfigurationException("Strategy "
+						+ strategy + " is not defined but used in rule " + rule);
 			rule.setTransformation(strategyByName.get(strategy));
 		}
 	}

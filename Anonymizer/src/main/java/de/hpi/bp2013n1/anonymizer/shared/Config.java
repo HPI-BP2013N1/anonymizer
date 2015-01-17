@@ -63,6 +63,14 @@ public class Config {
 			super(message);
 		}
 	}
+	
+	public static class InvalidConfigurationException extends Exception {
+		private static final long serialVersionUID = 4125870021463484369L;
+
+		public InvalidConfigurationException(String message) {
+			super(message);
+		}
+	}
 
 	public static class DependantWithoutRuleException extends Exception {
 		public DependantWithoutRuleException() {
