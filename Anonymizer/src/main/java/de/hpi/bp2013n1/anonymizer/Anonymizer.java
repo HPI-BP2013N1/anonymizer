@@ -60,7 +60,6 @@ import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedExecti
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.TransformationFailedException;
 import de.hpi.bp2013n1.anonymizer.db.BatchOperation;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
-import de.hpi.bp2013n1.anonymizer.shared.AnonymizerUtils;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
@@ -82,7 +81,6 @@ public class Anonymizer {
 	private ArrayList<TransformationStrategy> transformationStrategies = new ArrayList<>();
 	private TreeMap<String, TransformationStrategy> strategyByClassName = new TreeMap<>();
 	private Map<String, TransformationStrategy> strategyByName = new TreeMap<>();
-	private ArrayList<TableRuleMap> tableRuleMaps;
 	private final int LOG_INTERVAL = 1000;
 	
 	public static final Logger anonymizerLogger = Logger.getLogger(Anonymizer.class.getName());
@@ -449,7 +447,6 @@ public class Anonymizer {
 		}
 		
 		collectRulesBySite();
-		tableRuleMaps = AnonymizerUtils.createTableRuleMaps(config, scope);
 		int currentTableNumber = 0;
 		for (String table : scope.tables) {
 			TableRuleMap ruleMap = buildTableRuleMapFor(table);
@@ -833,13 +830,17 @@ public class Anonymizer {
 		SQLHelper.createSchema(config.schemaName, transformationDB);
 	}
 
-	public List<Rule> getRulesFor(String tableName, String columnName)
-			throws TableNotInScopeException {
-		for (TableRuleMap tableRuleMap : tableRuleMaps)
-			if (tableRuleMap.tableName.equalsIgnoreCase(tableName)) {
-				return tableRuleMap.getRulesIgnoreCase(columnName);
-			}
-		throw new TableNotInScopeException();
+	public Collection<Rule> getRulesFor(String tableName, String columnName) {
+		return comprehensiveRulesBySite.get(
+				new TableField(tableName, columnName, config.getSchemaName()));
+	}
+	
+	public boolean isTableInScope(TableField tableSite) {
+		return scope.tables.contains(tableSite.getTable());
+	}
+	
+	public boolean isTableInScope(String tableName) {
+		return scope.tables.contains(tableName);
 	}
 	
 }
