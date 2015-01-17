@@ -61,6 +61,8 @@ import de.hpi.bp2013n1.anonymizer.TransformationStrategy.TransformationFailedExc
 import de.hpi.bp2013n1.anonymizer.db.BatchOperation;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Rule;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
@@ -302,19 +304,26 @@ public class Anonymizer {
 	 *            [0] = path to intermediary config file, args[1] = path to scope file
 	 * @throws Exception
 	 */
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 		if (args.length < 3) {
 			System.err.println("Expected 3 Arguments\n" +
 					"1. : path to intermediary config file, \n" +
 					"2. : path to scope file,\n" +
 					"3. : desired name of logfile");
+			System.exit(64);
 			return;
 		}
 		
 		List<String> arguments = Lists.newArrayList(args);
 		boolean skipRuleValidation = arguments.remove("--skip-rule-validation");
 			
-		setUpLogging(arguments.get(2));
+		try {
+			setUpLogging(arguments.get(2));
+		} catch (IOException e) {
+			anonymizerLogger.severe("Could not set up logging to the specified "
+					+ "file: " + e.getMessage());
+			System.exit(74);
+		}
 				
 		Config config = new Config();
 		Scope scope = new Scope();
@@ -324,10 +333,11 @@ public class Anonymizer {
 		} catch (IOException e) {
 			anonymizerLogger.severe("Could not read from config file: "
 					+ e.getMessage());
+			System.exit(74);
 			return;
-		} catch (Exception e) {
-			anonymizerLogger.severe("Reading config file failed: "
-					+ e.getMessage());
+		} catch (DependantWithoutRuleException | MalformedException e) {
+			anonymizerLogger.severe("Invalid config file: " + e.getMessage());
+			System.exit(78);
 			return;
 		}
 		try {
@@ -336,6 +346,7 @@ public class Anonymizer {
 		} catch (IOException e) {
 			anonymizerLogger.severe("Reading scope file failed: "
 					+ e.getMessage());
+			System.exit(74);
 			return;
 		}
 		Anonymizer anon = new Anonymizer(config, scope);
@@ -345,6 +356,7 @@ public class Anonymizer {
 			anon.connectAndRun();
 		} catch (FatalError e) {
 			anonymizerLogger.severe("Cannot recover from previous errors, exiting.");
+			System.exit(1);
 		}
 	}
 

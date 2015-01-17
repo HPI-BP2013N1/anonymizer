@@ -23,10 +23,13 @@ package de.hpi.bp2013n1.anonymizer.analyzer;
 
 import java.io.IOException;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.logging.Logger;
 
 import de.hpi.bp2013n1.anonymizer.analyzer.Analyzer.FatalError;
 import de.hpi.bp2013n1.anonymizer.shared.Config;
+import de.hpi.bp2013n1.anonymizer.shared.Config.DependantWithoutRuleException;
+import de.hpi.bp2013n1.anonymizer.shared.Config.MalformedException;
 import de.hpi.bp2013n1.anonymizer.shared.DatabaseConnector;
 import de.hpi.bp2013n1.anonymizer.shared.Scope;
 
@@ -49,6 +52,7 @@ public class Main {
 					+ "1. : path to config file\n"
 					+ "2. : path to scope\n"
 					+ "3. : path to output config file");
+			System.exit(64);
 			return;
 		}
 		
@@ -61,9 +65,12 @@ public class Main {
 			config.readFromFile(args[0]);
 		} catch (IOException e) {
 			logger.severe("Could not read from config file: " + e.getMessage());
+			System.exit(74);
 			return;
-		} catch (Exception e) {
-			logger.severe("Reading config file failed: " + e.getMessage());
+		}
+		catch (DependantWithoutRuleException | MalformedException e) {
+			logger.severe("Invalid configuration: " + e.getMessage());
+			System.exit(78);
 			return;
 		}
 
@@ -71,6 +78,7 @@ public class Main {
 			scope.readFromFile(args[1]);
 		} catch (IOException e) {
 			logger.severe("Could not read from scope file: " + e.getMessage());
+			System.exit(74);
 			return;
 		}
 		
@@ -81,9 +89,10 @@ public class Main {
 			analyzer.run(args[2]);
 		} catch (FatalError e) {
 			logger.severe("Cannot recover from previous error, exiting.");
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			System.exit(1);
+		} catch (SQLException e) {
+			logger.severe("Could not connect to the original database.");
+			System.exit(1);
 		}
 	}
 
