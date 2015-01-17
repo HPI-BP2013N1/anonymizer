@@ -21,6 +21,8 @@ package de.hpi.bp2013n1.anonymizer;
  */
 
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.PreparedStatement;
@@ -41,22 +43,39 @@ import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 class PrimaryKey {
 	List<String> columnNames;
 	List<String> columnTypeNames;
+	List<Boolean> columnNullable;
 	String keyName;
 	
 	public PrimaryKey() {
 		// let the caller fill it
 	}
-	
+
+	public PrimaryKey(List<String> columnNames, List<String> columnTypeNames,
+			List<Boolean> columnsNullable) {
+		checkArgument(columnNames.size() == columnTypeNames.size());
+		checkArgument(columnNames.size() == columnsNullable.size());
+		this.columnNames = columnNames;
+		this.columnTypeNames = columnTypeNames;
+		this.columnNullable = columnsNullable;
+	}
+
 	public PrimaryKey(List<String> columnNames, List<String> columnTypeNames) {
 		this.columnNames = columnNames;
 		this.columnTypeNames = columnTypeNames;
+		this.columnNullable = Lists.newArrayList();
+		for (@SuppressWarnings("unused") String _ : columnNames) {
+			columnNullable.add(false);
+		}
 	}
 
 	public PrimaryKey(List<String> columnNames) {
 		this.columnNames = columnNames;
 		this.columnTypeNames = Lists.newArrayList();
-		for (@SuppressWarnings("unused") String _ : columnNames)
+		this.columnNullable = Lists.newArrayList();
+		for (@SuppressWarnings("unused") String _ : columnNames) {
 			columnTypeNames.add(null);
+			columnNullable.add(false);
+		}
 	}
 
 	public PrimaryKey(String... columnNames) {
@@ -73,18 +92,21 @@ class PrimaryKey {
 			keyName = pkResultSet.getString("PK_NAME");
 			TreeMap<Integer, String> columns = new TreeMap<>();
 			do {
-				columns.put(pkResultSet.getInt("KEY_SEQ"), 
+				columns.put(pkResultSet.getInt("KEY_SEQ"),
 						pkResultSet.getString("COLUMN_NAME"));
 			} while (pkResultSet.next());
 			columnNames = new ArrayList<>(columns.values());
 			try (PreparedStatement select = database.prepareStatement(
-					"SELECT " + Joiner.on(',').join(columnNames) 
+					"SELECT " + Joiner.on(',').join(columnNames)
 					+ " FROM " + SQLHelper.qualifiedTableName(schema, table)
 					+ " WHERE 1 = 0")) { // only interested in metadata
 				ResultSetMetaData selectPKMetaData = select.getMetaData();
 				columnTypeNames = new ArrayList<>(columnNames.size());
+				columnNullable = Lists.newArrayListWithExpectedSize(columnNames.size());
 				for (int i = 1; i <= columnNames.size(); i++) {
 					columnTypeNames.add(selectPKMetaData.getColumnTypeName(i));
+					columnNullable.add(selectPKMetaData.isNullable(i)
+							== ResultSetMetaData.columnNullable);
 				}
 			}
 		}
@@ -147,10 +169,13 @@ class PrimaryKey {
 			int columnCount = metadata.getColumnCount();
 			columnNames = new ArrayList<>(columnCount);
 			columnTypeNames = new ArrayList<>(columnCount);
+			columnNullable = new ArrayList<>(columnCount);
 			// TODO: consider using getColumnType with java.sql.Types
 			for (int i = 1; i <= columnCount; i++) {
 				columnNames.add(metadata.getColumnName(i));
 				columnTypeNames.add(metadata.getColumnTypeName(i));
+				columnNullable.add(metadata.isNullable(i)
+						== ResultSetMetaData.columnNullable);
 			}
 		}
 	}
@@ -162,9 +187,17 @@ class PrimaryKey {
 	public List<String> columnDefinitions() {
 		ArrayList<String> definitions = new ArrayList<>(columnNames.size());
 		for (int i = 0; i < columnNames.size(); i++)
-			definitions.add(columnNames.get(i) + " " 
-					+ columnTypeNames.get(i));
+			definitions.add(columnDefinition(i));
 		return definitions;
+	}
+
+	private String columnDefinition(int columnIndex) {
+		StringBuilder builder = new StringBuilder();
+		builder.append(columnNames.get(columnIndex)).append(" ");
+		builder.append(columnTypeNames.get(columnIndex));
+		if (!columnNullable.get(columnIndex))
+			builder.append(" NOT NULL");
+		return builder.toString();
 	}
 
 	public Map<String, Object> keyValues(ResultSetRowReader row)

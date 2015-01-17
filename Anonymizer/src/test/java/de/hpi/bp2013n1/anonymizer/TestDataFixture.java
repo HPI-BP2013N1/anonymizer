@@ -28,6 +28,7 @@ import java.net.URL;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.logging.Logger;
 
 import org.dbunit.DatabaseUnitException;
 import org.dbunit.database.DatabaseConnection;
@@ -46,11 +47,15 @@ import de.hpi.bp2013n1.anonymizer.shared.Scope;
 import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 
 public abstract class TestDataFixture implements AutoCloseable {
+	
+	private static Logger logger = Logger.getLogger(TestDataFixture.class.getName());
 
 	private static void executeDdlScript(InputStream ddlStream,
-			Connection dbConnection) throws SQLException, IOException {
+			Connection dbConnection) throws IOException {
 		try (InputStreamReader ddlReader = new InputStreamReader(ddlStream)) {
 			RunScript.execute(dbConnection, ddlReader);
+		} catch (SQLException e) {
+			logger.severe("Error during execution of DDL script: " + e.getMessage());
 		}
 	}
 

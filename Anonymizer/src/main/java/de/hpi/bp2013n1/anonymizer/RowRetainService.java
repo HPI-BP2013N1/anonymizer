@@ -89,23 +89,23 @@ public class RowRetainService {
 		if (transformationDatabase == null)
 			return; // for testing purposes
 		try (ResultSet retainTables = transformationDatabase.getMetaData()
-				.getTables(null, null, "%" + RETAIN_TABLE_SUFFIX, 
+				.getTables(null, null, "%" + RETAIN_TABLE_SUFFIX,
 						new String[] { "TABLE" })) {
 			while (retainTables.next()) {
 				String retainTableName = retainTables.getString("TABLE_NAME");
-				String sourceTableName = retainTableName.substring(0, 
+				String sourceTableName = retainTableName.substring(0,
 						retainTableName.length() - RETAIN_TABLE_SUFFIX.length());
 				tablesWithRetainedRows.add(
-						SQLHelper.qualifiedTableName(retainTables.getString("TABLE_SCHEM"), 
+						SQLHelper.qualifiedTableName(retainTables.getString("TABLE_SCHEM"),
 								sourceTableName));
 			}
 		} catch (SQLException e) {
-			logger.log(Level.SEVERE, "Could not search for retain mark tables", 
+			logger.log(Level.SEVERE, "Could not search for retain mark tables",
 					e);
 		}
 	}
 	
-	public void retainCurrentRow(String schema, String table, ResultSetRowReader row) 
+	public void retainCurrentRow(String schema, String table, ResultSetRowReader row)
 			throws InsertRetainMarkFailed {
 		try {
 			PrimaryKey pk = getPrimaryKey(schema, table);
@@ -126,12 +126,12 @@ public class RowRetainService {
 		}
 	}
 
-	private void createRetainTableFor(String schema, String table, PrimaryKey pk) 
+	private void createRetainTableFor(String schema, String table, PrimaryKey pk)
 			throws SQLException {
 		if (!schemaExists(schema, transformationDatabase))
 			SQLHelper.createSchema(schema, transformationDatabase);
 		try (Statement createTable = transformationDatabase.createStatement()) {
-			createTable.executeUpdate("CREATE TABLE " 
+			createTable.executeUpdate("CREATE TABLE "
 					+ retainTableName(schema, table)
 					+ " (" + Joiner.on(',').join(pk.columnDefinitions()) + ", "
 					+ "PRIMARY KEY (" + Joiner.on(',').join(pk.columnNames) + "))");
@@ -145,7 +145,7 @@ public class RowRetainService {
 		}
 	}
 
-	private boolean retainTableExistsFor(String schema, String table) 
+	private boolean retainTableExistsFor(String schema, String table)
 			throws SQLException {
 		try (ResultSet tables = transformationDatabase.getMetaData()
 				.getTables(null, schema, table, new String[] { "TABLE" })) {
@@ -163,8 +163,8 @@ public class RowRetainService {
 		List<Character> placeholders = new ArrayList<>(pk.columnNames.size());
 		for (int i = 0; i < pk.columnNames.size(); i++)
 			placeholders.add('?');
-		return "INSERT INTO " + retainTableName(schema, table) + " (" 
-			+ commaJoiner.join(pk.columnNames) + ") VALUES (" 
+		return "INSERT INTO " + retainTableName(schema, table) + " ("
+			+ commaJoiner.join(pk.columnNames) + ") VALUES ("
 			+ commaJoiner.join(placeholders) + ")";
 	}
 
@@ -172,7 +172,7 @@ public class RowRetainService {
 		return schema + "." + table + RETAIN_TABLE_SUFFIX;
 	}
 
-	public PrimaryKey getPrimaryKey(String schema, String table) 
+	public PrimaryKey getPrimaryKey(String schema, String table)
 			throws SQLException {
 		PrimaryKey pk = cachedPrimaryKeys.get(SQLHelper.qualifiedTableName(schema, table));
 		if (pk != null)
@@ -197,7 +197,7 @@ public class RowRetainService {
 
 	String selectRetainedPrimaryKeyQuery(String schema, String table,
 			Map<String, Object> comparisons) {
-		return "SELECT 1 FROM " + retainTableName(schema, table) 
+		return "SELECT 1 FROM " + retainTableName(schema, table)
 		+ " WHERE " + PrimaryKey.whereComparisonClause(comparisons);
 	}
 

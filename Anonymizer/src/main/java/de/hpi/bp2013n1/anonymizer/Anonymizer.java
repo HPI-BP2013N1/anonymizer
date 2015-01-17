@@ -779,6 +779,10 @@ public class Anonymizer {
 					") : " + e.getMessage() + ". Using empty String instead.");
 		} catch (TransformationFailedException e) {
 			anonymizerLogger.severe(e.getMessage());
+			Throwable t = e;
+			while ((t = t.getCause()) != null) {
+				anonymizerLogger.severe("caused by: " + t.getMessage());
+			}
 		}
 		return Lists.newArrayList("");
 	}
