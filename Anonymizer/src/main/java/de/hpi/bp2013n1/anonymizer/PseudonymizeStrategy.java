@@ -235,9 +235,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 					PseudonymGenerator.createNewRandomMap(newValues, randomValues);
 			pseudonymsTable.insertNewPseudonyms(newMapping);
 		} catch (SQLException e) {
-			e.printStackTrace();
-			while ((e = e.getNextException()) != null)
-				e.printStackTrace();
+			throw new TransformationKeyCreationException(
+					"An SQL error occurred when creating pseudonyms.", e);
 		}
 	}
 
