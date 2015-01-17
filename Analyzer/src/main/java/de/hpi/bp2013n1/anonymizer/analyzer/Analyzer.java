@@ -169,6 +169,8 @@ public class Analyzer {
 								tablesResultSet.getString("TABLE_SCHEM"));
 						if (!scope.tables.contains(pkTableField.getTable()))
 							continue;
+						if (!pkTableField.getSchema().equals(config.getSchemaName()))
+							continue;
 						for (Rule ruleForTable : rulesForTable) {
 							if (ruleForTable.getTableField().equals(pkTableField))
 								continue primaryKeyColumnsLoop;
@@ -203,7 +205,8 @@ public class Analyzer {
 	void findPossibleDependantsByName(Rule rule,
 			DatabaseMetaData metaData) throws SQLException {
 		TableField parentField = rule.getTableField();
-		try (ResultSet similarlyNamedColumns = metaData.getColumns(null, null,
+		try (ResultSet similarlyNamedColumns = metaData.getColumns(null,
+				config.getSchemaName(),
 				null, "%" + parentField.getColumn() + "%")) {
 			while (similarlyNamedColumns.next()) {
 				if (!scope.tables.contains(
@@ -226,11 +229,11 @@ public class Analyzer {
 		// find all dependants by foreign keys
 		for (String tableName : scope.tables) {
 			try (ResultSet exportedKeys = metaData.getExportedKeys(
-					null, null, tableName)) {
+					null, config.getSchemaName(), tableName)) {
 				addDependantsFromReferences(exportedKeys);
 			}
 			try (ResultSet importedKeys = metaData.getImportedKeys(
-					null, null, tableName)) {
+					null, config.getSchemaName(), tableName)) {
 				addDependantsFromReferences(importedKeys);
 			}
 		}
@@ -248,6 +251,8 @@ public class Analyzer {
 					referencesFromMetaData.getString("PKTABLE_NAME"),
 					referencesFromMetaData.getString("PKCOLUMN_NAME"),
 					referencesFromMetaData.getString("PKTABLE_SCHEM"));
+			if (!pkTableField.getSchema().equals(config.getSchemaName()))
+				continue;
 			Collection<Rule> rulesForPKColumn = rulesByTableField.get(pkTableField);
 			if (rulesForPKColumn.isEmpty()) {
 				rulesForPKColumn.add(config.addNoOpRuleFor(pkTableField));
@@ -256,6 +261,8 @@ public class Analyzer {
 					referencesFromMetaData.getString("FKTABLE_NAME"),
 					referencesFromMetaData.getString("FKCOLUMN_NAME"),
 					referencesFromMetaData.getString("FKTABLE_SCHEM"));
+			if (!fkTableField.getSchema().equals(config.getSchemaName()))
+				continue;
 			for (Rule ruleForPKColumn : rulesForPKColumn) {
 				if (ruleForPKColumn.getDependants().contains(fkTableField))
 					continue referencesLoop; // is already a dependent
