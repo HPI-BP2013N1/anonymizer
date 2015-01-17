@@ -374,8 +374,7 @@ public class Anonymizer {
 	public int validateRules() throws SQLException {
 		anonymizerLogger.info("Checking whether the transformation rules are valid.");
 		int numberOfErrors = 0;
-		RuleValidator ruleValidator = new RuleValidator(strategyByClassName,
-				anonymizedDatabase.getMetaData());
+		RuleValidator ruleValidator = new RuleValidator(anonymizedDatabase.getMetaData());
 		for (Rule rule : config.rules) {
 			if (!ruleValidator.isValid(rule)) {
 				numberOfErrors++;

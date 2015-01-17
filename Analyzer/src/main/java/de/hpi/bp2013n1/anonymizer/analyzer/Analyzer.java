@@ -127,7 +127,7 @@ public class Analyzer {
 		addRulesForPrimaryKeyColumns(metaData);
 		initializeRulesByTableField();
 		findDependantsByForeignKeys(metaData);
-		ruleValidator = new RuleValidator(strategies, metaData);
+		ruleValidator = new RuleValidator(metaData);
 		Iterator<Rule> ruleIterator = config.rules.iterator();
 		while (ruleIterator.hasNext()) {
 			Rule rule = ruleIterator.next();

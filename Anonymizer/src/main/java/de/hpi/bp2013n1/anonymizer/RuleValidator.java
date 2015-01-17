@@ -3,7 +3,6 @@ package de.hpi.bp2013n1.anonymizer;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Map;
 import java.util.logging.Logger;
 
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.RuleValidationException;
@@ -13,12 +12,9 @@ import de.hpi.bp2013n1.anonymizer.shared.Rule;
 public class RuleValidator {
 	
 	private static Logger logger = Logger.getLogger(RuleValidator.class.getName());
-	private Map<String, TransformationStrategy> strategies;
 	private DatabaseMetaData metaData;
 
-	public RuleValidator(Map<String, TransformationStrategy> strategies,
-			DatabaseMetaData metaData) {
-		this.strategies = strategies;
+	public RuleValidator(DatabaseMetaData metaData) {
 		this.metaData = metaData;
 	}
 
