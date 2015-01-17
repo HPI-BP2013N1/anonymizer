@@ -209,11 +209,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		}
 		pseudonymTables.put(rule, pseudonymsTable);
 		try {
-			String distinctValuesQuery = distinctValuesQuery(rule,
-					originTableField);
-			String countDistinctValuesQuery = String.format(
-					"select count (distinctValues) from (%s)",
-					distinctValuesQuery);
+			String distinctValuesQuery = distinctValuesQuery(rule);
+			String countDistinctValuesQuery = countDistinctValuesQuery(distinctValuesQuery);
 
 			int numberOfDistinctValues;
 			try (Statement statement = originalDatabase.createStatement();
@@ -277,11 +274,14 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		}
 		return newValues;
 	}
+	
+	private static final String DISTINCT_VALUES_ALIAS = "distinctValues";
 
-	private String distinctValuesQuery(Rule rule, TableField originTableField) {
+	private String distinctValuesQuery(Rule rule) {
+		TableField originTableField = rule.getTableField();
 		StringBuilder distinctValuesQueryBuilder = new StringBuilder();
 		String distinctValuesQueryForOneColumn =
-				"(select distinct %s distinctValues from %s)";
+				"(select distinct %s " + DISTINCT_VALUES_ALIAS + " from %s)";
 		distinctValuesQueryBuilder.append(String.format(
 				distinctValuesQueryForOneColumn,
 				originTableField.column, originTableField.schemaTable()));
@@ -294,6 +294,20 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		}
 		
 		return distinctValuesQueryBuilder.toString();
+	}
+
+	private String countDistinctValuesQuery(Rule rule) {
+		return String.format(
+				"select count (%s) from (%s)",
+				DISTINCT_VALUES_ALIAS,
+				distinctValuesQuery(rule));
+	}
+
+	private String countDistinctValuesQuery(String distinctValuesQuery) {
+		return String.format(
+				"select count (%s) from (%s)",
+				DISTINCT_VALUES_ALIAS,
+				distinctValuesQuery);
 	}
 
 	public static String pseudonymsTableName(TableField originalTableField) {
@@ -417,8 +431,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		if ((oldValue.replaceAll(" +$", "").length() == 0))
 			return "";
 		
-		Map<String, String> cachedPseudonyms = cachedTransformations.get(
-				getPseudonymsTableSite(rule.getTableField()).schemaTable());
+		Map<String, String> cachedPseudonyms = cachedTransformations.get(rule);
 		if (cachedPseudonyms == null) {
 			return getPseudonymsTableFor(rule).fetchOne(oldValue);
 		} else {
@@ -471,8 +484,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			}
 
 			try (Statement stmt = originalDatabase.createStatement();
-				ResultSet rs = stmt.executeQuery(
-						selectDistinctValuesFromParentAndDependentColumns(rule))) {
+					ResultSet rs = stmt.executeQuery(
+							countDistinctValuesQuery(rule))) {
 				rs.next();
 				int count = rs.getInt(1);
 				if (rule.getAdditionalInfo().length()
@@ -494,23 +507,5 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			}
 		}
 		return true;
-	}
-
-	private String selectDistinctValuesFromParentAndDependentColumns(Rule rule) {
-		// TODO: why is distinctValuesQuery(rule, originTableField) not used here?
-		TableField tableField = rule.getTableField();
-		// rename columns to onlyDistinctValuesXYZ so you can make a union
-		StringBuilder query = new StringBuilder(
-				"select count (distinct onlyDistinctValuesXYZ) from (");
-		query.append("(select distinct ").append(tableField.column)
-		.append(" onlyDistinctValuesXYZ from ").append(tableField.schemaTable())
-		.append(")");
-		for (TableField tf : rule.getDependants()) {
-			query.append(" union (select distinct ").append(tf.column)
-			.append(" onlyDistinctValuesXYZ from ").append(tf.schemaTable())
-			.append(")");
-		}
-		query.append(")");
-		return query.toString();
 	}
 }
