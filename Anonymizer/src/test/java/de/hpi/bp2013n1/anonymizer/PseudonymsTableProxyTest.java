@@ -56,12 +56,12 @@ public class PseudonymsTableProxyTest {
 				assertThat("Values in the pseudonyms table should match the "
 						+ "inserted mapping", insertedMapping, equalTo(mapping));
 			}
-			Map<String, String> fetchedMapping = sut.fetch();
+			Map<String, String> fetchedMapping = sut.fetchStrings();
 			assertThat("Fetched mapping should match the inserted mapping",
 					fetchedMapping, equalTo(mapping));
 			for (String originalValue : mapping.keySet()) {
 				assertThat("Single fetched pseudonym should match the inserted "
-						+ "mapping", sut.fetchOne(originalValue),
+						+ "mapping", sut.fetchOneString(originalValue),
 						equalTo(mapping.get(originalValue)));
 			}
 		} finally {

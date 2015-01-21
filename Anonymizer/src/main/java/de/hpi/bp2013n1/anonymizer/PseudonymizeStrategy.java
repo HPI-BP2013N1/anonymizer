@@ -120,8 +120,28 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 						selectExistingPseudonymsStatement.executeQuery()) {
 					while (existingPseudonymsResultSet.next()) {
 						existingPseudonyms.put(
-								(T) existingPseudonymsResultSet.getObject(OLDVALUE),
-								(T) existingPseudonymsResultSet.getObject(NEWVALUE));
+								(T) existingPseudonymsResultSet.getObject(1),
+								(T) existingPseudonymsResultSet.getObject(2));
+					}
+				}
+			}
+			return existingPseudonyms;
+		}
+		
+		public Map<String, String> fetchStrings() throws SQLException {
+			HashMap<String, String> existingPseudonyms = new HashMap<>();
+			try (PreparedStatement selectExistingPseudonymsStatement =
+					database.prepareStatement(
+							"SELECT TRIM(TRAILING ' ' FROM " + OLDVALUE + "), "
+									+ "TRIM(TRAILING ' ' FROM " + NEWVALUE + ") "
+									+ "FROM "
+									+ tableSpec.schemaTable())) {
+				try (ResultSet existingPseudonymsResultSet =
+						selectExistingPseudonymsStatement.executeQuery()) {
+					while (existingPseudonymsResultSet.next()) {
+						existingPseudonyms.put(
+								existingPseudonymsResultSet.getString(1),
+								existingPseudonymsResultSet.getString(2));
 					}
 				}
 			}
@@ -143,6 +163,22 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 								"Could not find pseudonym for " + originalValue
 								+ " in pseudonyms table " + tableSpec.schemaTable());
 					return (T) resultSet.getObject(1);
+				}
+			}
+		}
+
+		public String fetchOneString(String originalValue) throws SQLException, TransformationKeyNotFoundException {
+			try (PreparedStatement selectStatement = database.prepareStatement(
+					"SELECT TRIM(TRAILING ' ' FROM " + NEWVALUE + ") "
+							+ "FROM " + tableSpec.schemaTable()
+							+ " WHERE " + OLDVALUE + " = ?")) {
+				selectStatement.setString(1, originalValue.toString());
+				try (ResultSet resultSet = selectStatement.executeQuery()) {
+					if (!resultSet.next())
+						throw new TransformationKeyNotFoundException(
+								"Could not find pseudonym for " + originalValue
+								+ " in pseudonyms table " + tableSpec.schemaTable());
+					return resultSet.getString(1);
 				}
 			}
 		}
@@ -209,7 +245,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		}
 		pseudonymTables.put(rule, pseudonymsTable);
 		try {
-			String distinctValuesQuery = distinctValuesQuery(rule);
+			boolean isStringAttribute = SQLTypes.isCharacterType(originTableFieldDatatype.type);
+			String distinctValuesQuery = distinctValuesQuery(rule, isStringAttribute);
 			String countDistinctValuesQuery = countDistinctValuesQuery(distinctValuesQuery);
 
 			int numberOfDistinctValues;
@@ -220,7 +257,12 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 				numberOfDistinctValues = countDistinctValuesResultSet.getInt(1);
 			}
 			
-			Map<Object, Object> existingPseudonyms = pseudonymsTable.fetch();
+			@SuppressWarnings("rawtypes")
+			Map existingPseudonyms;
+			if (isStringAttribute)
+				existingPseudonyms = pseudonymsTable.fetchStrings();
+			else
+				existingPseudonyms = pseudonymsTable.fetch();
 			Set<Object> newValues = determinateNewValuesInDatabase(existingPseudonyms, distinctValuesQuery);
 			List<String> randomValues = new PseudonymGenerator().
 					createNewPseudonyms(rule, originTableFieldDatatype, numberOfDistinctValues);
@@ -260,8 +302,10 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	}
 	
 	private Set<Object> determinateNewValuesInDatabase(
-			Map<Object, Object> existingPseudonyms, String distinctValuesQuery) throws SQLException {
+			@SuppressWarnings("rawtypes") Map existingPseudonyms,
+			String distinctValuesQuery) throws SQLException {
 		HashSet<Object> newValues = new HashSet<Object>();
+		
 		try (Statement statement = originalDatabase.createStatement();
 				ResultSet distinctValuesResultSet =
 						statement.executeQuery(distinctValuesQuery)) {
@@ -277,11 +321,14 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	
 	private static final String DISTINCT_VALUES_ALIAS = "distinctValues";
 
-	private String distinctValuesQuery(Rule rule) {
+	private String distinctValuesQuery(Rule rule, boolean isStringValue) {
 		TableField originTableField = rule.getTableField();
 		StringBuilder distinctValuesQueryBuilder = new StringBuilder();
 		String distinctValuesQueryForOneColumn =
 				"(select distinct %s " + DISTINCT_VALUES_ALIAS + " from %s)";
+		if (isStringValue)
+			distinctValuesQueryForOneColumn = distinctValuesQueryForOneColumn
+			.replaceFirst("%s", "TRIM(TRAILING ' ' FROM %s)");
 		distinctValuesQueryBuilder.append(String.format(
 				distinctValuesQueryForOneColumn,
 				originTableField.column, originTableField.schemaTable()));
@@ -296,11 +343,11 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		return distinctValuesQueryBuilder.toString();
 	}
 
-	private String countDistinctValuesQuery(Rule rule) {
+	private String countDistinctValuesQuery(Rule rule, boolean isStringAttribute) {
 		return String.format(
 				"select count (%s) from (%s)",
 				DISTINCT_VALUES_ALIAS,
-				distinctValuesQuery(rule));
+				distinctValuesQuery(rule, isStringAttribute));
 	}
 
 	private String countDistinctValuesQuery(String distinctValuesQuery) {
@@ -433,7 +480,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		
 		Map<String, String> cachedPseudonyms = cachedTransformations.get(rule);
 		if (cachedPseudonyms == null) {
-			return getPseudonymsTableFor(rule).fetchOne(oldValue);
+			return getPseudonymsTableFor(rule).fetchOneString(oldValue);
 		} else {
 			String result = cachedPseudonyms.get(
 					oldValue.replaceAll(" +$", ""));
@@ -450,7 +497,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		pseudonymizationRules.removeAll(cachedTransformations.keySet());
 		for (Rule rule : pseudonymizationRules) {
 			cachedTransformations.put(rule,
-					getPseudonymsTableFor(rule).<String>fetch());
+					getPseudonymsTableFor(rule).fetchStrings());
 		}
 	}
 
@@ -485,7 +532,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 
 			try (Statement stmt = originalDatabase.createStatement();
 					ResultSet rs = stmt.executeQuery(
-							countDistinctValuesQuery(rule))) {
+							countDistinctValuesQuery(rule, true))) {
 				rs.next();
 				int count = rs.getInt(1);
 				if (rule.getAdditionalInfo().length()

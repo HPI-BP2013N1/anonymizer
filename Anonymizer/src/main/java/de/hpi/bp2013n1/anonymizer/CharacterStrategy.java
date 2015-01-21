@@ -193,7 +193,7 @@ public class CharacterStrategy extends TransformationStrategy {
 	private Map<Character, Character> fetchCharacterMapping(Rule rule)
 			throws SQLException {
 		Map<String, String> mappingInDatabase =
-				getPseudonymsTableFor(rule).fetch();
+				getPseudonymsTableFor(rule).fetchStrings();
 		// there is no "single-character" SQL datatype, so we can only fetch strings
 		Map<Character, Character> characterMapping = Maps.newHashMap();
 		for (Map.Entry<String, String> entry : mappingInDatabase.entrySet())
