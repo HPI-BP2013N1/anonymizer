@@ -470,7 +470,9 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	@Override
 	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row)
 			throws SQLException, TransformationKeyNotFoundException {
-		return Lists.newArrayList(transform(oldValue.toString(), rule, row));
+		return Lists.newArrayList(transform(
+				oldValue == null ? null : oldValue.toString(),
+				rule, row));
 	}
 	
 
