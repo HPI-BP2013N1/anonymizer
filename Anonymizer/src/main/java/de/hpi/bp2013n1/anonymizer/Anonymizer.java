@@ -76,6 +76,9 @@ import de.hpi.bp2013n1.anonymizer.tools.TableTruncater;
 import de.hpi.bp2013n1.anonymizer.util.RuleConnector;
 import de.hpi.bp2013n1.anonymizer.util.SQLHelper;
 
+/**
+ * Application class that conducts an anonymization run on databases.
+ */
 public class Anonymizer {
 	
 	public Config config;
@@ -144,6 +147,11 @@ public class Anonymizer {
 		run();
 	}
 
+	/**
+	 * Initializes transformation strategies, valides the configuration and
+	 * then performs the actual anonymization. Catches all declared exceptions
+	 * and wraps them as FatalError.
+	 */
 	public void run() throws FatalError {
 		try {
 			loadAndInstantiateStrategies();
@@ -366,6 +374,13 @@ public class Anonymizer {
 		}
 	}
 
+	/**
+	 * Overrides the logging format and also routes logging output to the
+	 * specified log file.
+	 * 
+	 * @param logFilename path to the log file to which logging output should be written
+	 * @throws IOException cannot initialize FileHandler for the logfile
+	 */
 	public static void setUpLogging(String logFilename) throws IOException {
 		System.setProperty("java.util.logging.SimpleFormatter.format", "[%1$tF %1$tT] - %4$s: %5$s (%2$s)%n");
 		Logger logger = Logger.getLogger("de.hpi.bp2013n1");
@@ -391,7 +406,9 @@ public class Anonymizer {
 
 	/**
 	 * Main anonymization method. Creates transformation tables in
-	 * transformation database, then copies and/or anonymizes the data
+	 * transformation database, then copies and/or anonymizes the data.
+	 * During the transformation and copying, every relevant constraint in the
+	 * destination database will be disabled.
 	 * 
 	 * @throws ColumnTypeNotSupportedException
 	 * @throws TransformationTableCreationException
@@ -494,6 +511,10 @@ public class Anonymizer {
 		return ruleMap;
 	}
 
+	/**
+	 * Creates a multimap which maps applied strategies to a TableField
+	 * (table or attribtue) in the correct order of application.
+	 */
 	void collectRulesBySite() {
 		RuleConnector ruleConnector = new RuleConnector();
 		ruleConnector.addRules(config.getRules());
@@ -851,6 +872,13 @@ public class Anonymizer {
 		SQLHelper.createSchema(config.schemaName, transformationDB);
 	}
 
+	/**
+	 * Retrieves all rules which are applied to the specified attribute in the
+	 * order of application.
+	 * 
+	 * @param tableName table which contains the attribute
+	 * @param columnName column name of the attribute
+	 */
 	public Collection<Rule> getRulesFor(String tableName, String columnName) {
 		return comprehensiveRulesBySite.get(
 				new TableField(tableName, columnName, config.getSchemaName()));
