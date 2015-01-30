@@ -34,8 +34,16 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyCreationException;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationKeyNotFoundException;
 import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
+/**
+ * Abstract base class for all transformation strategies.
+ *
+ */
 public abstract class TransformationStrategy {
 	
+	/**
+	 * Describes and encapsulates any exceptions that might occur during
+	 * preparations of a transformation (in setUpTransformation).
+	 */
 	public class PreparationFailedException extends Exception {
 		private static final long serialVersionUID = 3972841187290919020L;
 
@@ -61,6 +69,10 @@ public abstract class TransformationStrategy {
 
 	}
 	
+	/**
+	 * Describes and encapsulates any exceptions taht might occur during the
+	 * transformation of a value.
+	 */
 	public static class TransformationFailedException extends Exception {
 		public TransformationFailedException() {
 			super();
@@ -87,6 +99,10 @@ public abstract class TransformationStrategy {
 		
 	}
 
+	/**
+	 * Indicates that a transformation strategy was applied to an attribute with
+	 * a type that is not supported by that strategy.
+	 */
 	public static class ColumnTypeNotSupportedException extends Exception {
 		private static final long serialVersionUID = -6729775852034148141L;
 
@@ -95,6 +111,10 @@ public abstract class TransformationStrategy {
 		}
 	}
 
+	/**
+	 * Indicates that pseudonyms or other data relevant for the transformation
+	 * could not be fetched from the transformation database.
+	 */
 	public static class FetchPseudonymsFailedException extends Exception {
 		private static final long serialVersionUID = -6838586429361315358L;
 
@@ -110,7 +130,6 @@ public abstract class TransformationStrategy {
 	/**
 	 * This exception is thrown if something goes wrong during the validation
 	 * of a Rule in an implementation of TransformationStrategy.isRuleValid.
-	 * @author jreschke
 	 */
 	public static class RuleValidationException extends Exception {
 		private static final long serialVersionUID = -7079792700936251777L;
@@ -146,18 +165,43 @@ public abstract class TransformationStrategy {
 		this.transformationDatabase = transformationDatabase;
 	}
 
+	/**
+	 * Prepare transformations according to the supplied rules. This may include
+	 * analyzing data in the original database and storing data into the
+	 * transformation database. This method is called once per strategy and
+	 * Anonymizer run.
+	 * 
+	 * @param rules Rules which apply this transformation strategy.
+	 * @throws FetchPseudonymsFailedException pseudonyms or other transformation
+	 * 			data cannot be fetched from the transformation database
+	 * @throws TransformationKeyCreationException pseudonyms or other
+	 * 			transformation data cannot be inserted into the transformation
+	 * 			database
+	 * @throws TransformationTableCreationException tables for transformation
+	 * 			data could not be created in the transformation database
+	 * @throws ColumnTypeNotSupportedException this strategy does not support
+	 * 			the type of an attribute referenced by one of the rules
+	 * @throws PreparationFailedException anything else went wrong during this
+	 * 			set up phase
+	 */
 	abstract public void setUpTransformation(Collection<Rule> rules)
 			throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException, ColumnTypeNotSupportedException,
-			PreparationFailedExection;
+			PreparationFailedException;
 
 	/**
+	 * Transforms a single value. This method is called for every transformed
+	 * value from the original database.
 	 * 
-	 * @param oldValue to transform
-	 * @param rule Config Rule which said this strategy is to be called
-	 * @param row ResultSetRowReader which allows the strategy to access other columns of the original row
-	 * @return returns new value if translation was found, returns oldValue otherwise
+	 * @param oldValue value to be transformed
+	 * @param rule Rule which specifies to apply this strategy to the value
+	 * @param row ResultSetRowReader which allows this strategy to access other
+	 * 			columns of the original row (which usually contains oldValue)
+	 * @return returns an iterable of transformed values. Each element of the
+	 * 			iterable will go to a separate row in the destination database.
+	 * 			The returned iterable may be empty to indicate that the row from
+	 * 			which oldValue was obtained should be deleted.
 	 */
 	abstract public Iterable<?> transform(Object oldValue, Rule rule,
 			ResultSetRowReader row) throws TransformationFailedException,
@@ -203,7 +247,7 @@ public abstract class TransformationStrategy {
 
 	/**
 	 * returns a shuffled copy of the given array
-	 * **/
+	 */
 	public static char[] shuffleArray(char[] array) {
 		char[] shuffledArray = array.clone();
 		shuffleArrayInPlace(shuffledArray);
@@ -220,13 +264,40 @@ public abstract class TransformationStrategy {
 		}
 	}
 
+	/**
+	 * Prepares this strategy to transform values in a single table.
+	 * 
+	 * @param tableRules TableRuleMap which contains the Rules which state that
+	 * 			this strategy is to be applied to the respective columns in the
+	 * 			table.
+	 * @throws SQLException database errors occured during the preparation
+	 * @throws FetchPseudonymsFailedException pseudonyms or other relevant
+	 * 			transformation data could not be fetched from the transformation
+	 * 			database.
+	 */
 	public abstract void prepareTableTransformation(TableRuleMap tableRules)
 			throws SQLException, FetchPseudonymsFailedException;
 	
+	/**
+	 * Prints a summary of this strategy's results. Does nothing by default.
+	 */
 	public void printSummary() {
 		// no-op by default, subclasses may override this
 	}
 
+	/**
+	 * Checks if a Rule applying this strategy to tables and attributes is valid
+	 * (applicable) as far as this strategy is concerned.
+	 * 
+	 * @param rule Rule which states to apply this strategy to an attribute
+	 * @param type SQL type of the attribute to which this strategy is applied
+	 * @param length length of the attribute to which this strategy is applied
+	 * @param nullAllowed true if SQL NULL is a valid value for this attribute
+	 * @return true, if the strategy can be applied to this attribute, false
+	 * 			if there are any objections
+	 * @throws RuleValidationException an error occurred which prevents a useful
+	 * 			validation of this Rule
+	 */
 	public abstract boolean isRuleValid(Rule rule, int type, int length,
 			boolean nullAllowed) throws RuleValidationException;
 }
