@@ -36,25 +36,25 @@ import de.hpi.bp2013n1.anonymizer.shared.TransformationTableCreationException;
 
 public abstract class TransformationStrategy {
 	
-	public class PreparationFailedExection extends Exception {
+	public class PreparationFailedException extends Exception {
 		private static final long serialVersionUID = 3972841187290919020L;
 
-		public PreparationFailedExection() {
+		public PreparationFailedException() {
 		}
 
-		public PreparationFailedExection(String arg0) {
+		public PreparationFailedException(String arg0) {
 			super(arg0);
 		}
 
-		public PreparationFailedExection(Throwable arg0) {
+		public PreparationFailedException(Throwable arg0) {
 			super(arg0);
 		}
 
-		public PreparationFailedExection(String message, Throwable cause) {
+		public PreparationFailedException(String message, Throwable cause) {
 			super(message, cause);
 		}
 
-		public PreparationFailedExection(String message, Throwable cause,
+		public PreparationFailedException(String message, Throwable cause,
 				boolean enableSuppression, boolean writableStackTrace) {
 			super(message, cause, enableSuppression, writableStackTrace);
 		}

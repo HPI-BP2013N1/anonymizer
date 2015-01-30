@@ -47,7 +47,7 @@ import org.mockito.Mockito;
 
 import com.google.common.collect.Lists;
 
-import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedExection;
+import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedException;
 import de.hpi.bp2013n1.anonymizer.UniformDistributionStrategy.AdditionalInfo;
 import de.hpi.bp2013n1.anonymizer.UniformDistributionStrategy.ColumnValueParameters;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -82,11 +82,11 @@ public class UniformDistributionStrategyTest {
 	}
 
 	@Test
-	public void testSetUpTransformation() throws PreparationFailedExection {
+	public void testSetUpTransformation() throws PreparationFailedException {
 	}
 	
 	@Test
-	public void testTransformIntegers() throws SQLException, TransformationKeyNotFoundException, PreparationFailedExection {
+	public void testTransformIntegers() throws SQLException, TransformationKeyNotFoundException, PreparationFailedException {
 		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
 			ddlStatement.executeUpdate("CREATE TABLE IntegerTable ("
 					+ "aColumn INT)");
@@ -119,7 +119,7 @@ public class UniformDistributionStrategyTest {
 	}
 
 	@Test
-	public void testTransform() throws SQLException, TransformationKeyNotFoundException, PreparationFailedExection {
+	public void testTransform() throws SQLException, TransformationKeyNotFoundException, PreparationFailedException {
 		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
 			ddlStatement.executeUpdate("CREATE TABLE aTable ("
 					+ "aColumn VARCHAR(20))");
@@ -183,7 +183,7 @@ public class UniformDistributionStrategyTest {
 	}
 
 	@Test
-	public void testSubstringTransform() throws SQLException, PreparationFailedExection, TransformationKeyNotFoundException {
+	public void testSubstringTransform() throws SQLException, PreparationFailedException, TransformationKeyNotFoundException {
 		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
 			ddlStatement.executeUpdate("CREATE TABLE aTable ("
 					+ "aColumn VARCHAR(20))");
@@ -220,7 +220,7 @@ public class UniformDistributionStrategyTest {
 	}
 	
 	@Test
-	public void testRetainedRowsHandling() throws SQLException, PreparationFailedExection, TransformationKeyNotFoundException {
+	public void testRetainedRowsHandling() throws SQLException, PreparationFailedException, TransformationKeyNotFoundException {
 		try (Statement ddlStatement = testData.originalDbConnection.createStatement()) {
 			ddlStatement.executeUpdate("CREATE TABLE aTable ("
 					+ "aColumn VARCHAR(20), otherColumn INT, "

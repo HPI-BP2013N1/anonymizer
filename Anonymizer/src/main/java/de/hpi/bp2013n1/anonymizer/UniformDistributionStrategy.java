@@ -88,7 +88,7 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 		public Map<Object, Long> existingCardinalities = new HashMap<>();
 		
 		void computeFrom(Rule rule, String column)
-				throws PreparationFailedExection {
+				throws PreparationFailedException {
 			columnExpression = column;
 			AdditionalInfo info = null;
 			if (!Strings.isNullOrEmpty(rule.getAdditionalInfo())) {
@@ -116,7 +116,7 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 							groupByResult.getObject(2), count);
 				}
 			} catch (SQLException e) {
-				throw new PreparationFailedExection(
+				throw new PreparationFailedException(
 						"Could not retrieve value distribution for " + rule, e);
 			}
 			if (info != null && info.lowerRowThreshold != 0.f) {
@@ -160,13 +160,13 @@ public class UniformDistributionStrategy extends TransformationStrategy {
 
 	@Override
 	public void setUpTransformation(Collection<Rule> rules)
-			throws PreparationFailedExection {
+			throws PreparationFailedException {
 		for (Rule rule : rules)
 			setUpTransformation(rule);
 	}
 
 	private void setUpTransformation(Rule rule)
-			throws PreparationFailedExection {
+			throws PreparationFailedException {
 		String column = rule.getTableField().column;
 		ColumnValueParameters valueParameters = new ColumnValueParameters();
 		valueParameters.computeFrom(rule, column);

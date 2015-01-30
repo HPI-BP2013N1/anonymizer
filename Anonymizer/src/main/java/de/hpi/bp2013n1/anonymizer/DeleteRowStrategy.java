@@ -49,7 +49,7 @@ public class DeleteRowStrategy extends TransformationStrategy {
 			throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
-			ColumnTypeNotSupportedException, PreparationFailedExection {
+			ColumnTypeNotSupportedException, PreparationFailedException {
 	}
 
 	@Override

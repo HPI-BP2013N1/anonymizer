@@ -25,7 +25,7 @@ public class NoOperationStrategy extends TransformationStrategy {
 			throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
-			ColumnTypeNotSupportedException, PreparationFailedExection {
+			ColumnTypeNotSupportedException, PreparationFailedException {
 	}
 
 	@Override

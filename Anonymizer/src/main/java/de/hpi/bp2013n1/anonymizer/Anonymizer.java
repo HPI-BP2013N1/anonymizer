@@ -56,7 +56,7 @@ import com.google.common.collect.Multimap;
 
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.ColumnTypeNotSupportedException;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.FetchPseudonymsFailedException;
-import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedExection;
+import de.hpi.bp2013n1.anonymizer.TransformationStrategy.PreparationFailedException;
 import de.hpi.bp2013n1.anonymizer.TransformationStrategy.TransformationFailedException;
 import de.hpi.bp2013n1.anonymizer.db.BatchOperation;
 import de.hpi.bp2013n1.anonymizer.db.TableField;
@@ -194,7 +194,7 @@ public class Anonymizer {
 							+ "should be applied: " + e.getMessage());
 					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
-				} catch (PreparationFailedExection e) {
+				} catch (PreparationFailedException e) {
 					logSevereErrorAndCausesWithInnerStackTrace(e);
 					throw new FatalError(e);
 				} catch (TableNotFoundException e) {
@@ -397,12 +397,12 @@ public class Anonymizer {
 	 * @throws TransformationTableCreationException
 	 * @throws TransformationKeyCreationException
 	 * @throws FetchPseudonymsFailedException
-	 * @throws PreparationFailedExection
+	 * @throws PreparationFailedException
 	 */
 	public void anonymize() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
-			ColumnTypeNotSupportedException, PreparationFailedExection,
+			ColumnTypeNotSupportedException, PreparationFailedException,
 			TableNotFoundException {
 		anonymizerLogger.info("Started anonymizing.");
 		checkIfTablesExistInDestinationDatabase();
@@ -810,7 +810,7 @@ public class Anonymizer {
 	private void prepareTransformations() throws FetchPseudonymsFailedException,
 			TransformationKeyCreationException,
 			TransformationTableCreationException,
-			ColumnTypeNotSupportedException, PreparationFailedExection {
+			ColumnTypeNotSupportedException, PreparationFailedException {
 		anonymizerLogger.info("Setting up transformations.");
 		try {
 			createSchemaInTransformataionDatabase();
