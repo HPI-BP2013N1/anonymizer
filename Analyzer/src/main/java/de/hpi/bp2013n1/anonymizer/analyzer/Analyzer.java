@@ -89,7 +89,6 @@ public class Analyzer {
 	}
 	
 
-	
 	public void run(String outputFilename) throws FatalError {
 		logger.fine("Starting analysis at " + Calendar.getInstance().getTime());
 		setUpTransformationStrategies();
@@ -193,6 +192,15 @@ public class Analyzer {
 		return false;
 	}
 
+	/**
+	 * Returns true if for the suggested parent and suggested child attribute
+	 * a Rule exists in which the suggested parent is a dependent of the
+	 * suggested child.
+	 * 
+	 * @param suggestedParent
+	 * @param suggestedChild
+	 * @return
+	 */
 	boolean inverseRuleExists(TableField suggestedParent, TableField suggestedChild) {
 		Collection<Rule> rulesForChild = rulesByTableField.get(suggestedChild);
 		for (Rule anyRule : rulesForChild) {
@@ -202,6 +210,14 @@ public class Analyzer {
 		return false;
 	}
 	
+	/**
+	 * Add dependants and Rules for attributes which could be dependents on other
+	 * attributes only judging by their name.
+	 * 
+	 * @param rule
+	 * @param metaData
+	 * @throws SQLException
+	 */
 	void findPossibleDependantsByName(Rule rule,
 			DatabaseMetaData metaData) throws SQLException {
 		TableField parentField = rule.getTableField();
