@@ -71,7 +71,8 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 		public PseudonymsTableProxy(TableField pseudonymsTable,
 				ColumnDatatypeDescription columnType, Connection database) {
 			checkArgument(!Strings.isNullOrEmpty(pseudonymsTable.table));
-			checkArgument(!Strings.isNullOrEmpty(pseudonymsTable.schema));
+			checkArgument(pseudonymsTable.schema == null
+					|| !pseudonymsTable.schema.isEmpty());
 			checkArgument(SQLTypes.isValidType(columnType.type));
 			checkArgument(database != null);
 			this.tableSpec = pseudonymsTable;
@@ -210,6 +211,13 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 
 		public ColumnDatatypeDescription getColumnType() {
 			return columnType;
+		}
+
+		public void drop() throws SQLException {
+			try (PreparedStatement dropStatement = database.prepareStatement(
+					"DROP TABLE " + tableSpec.schemaTable())) {
+				dropStatement.executeUpdate();
+			}
 		}
 	}
 
@@ -390,7 +398,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			case Types.SMALLINT:
 			case Types.INTEGER:
 			case Types.BIGINT:
-				randomValues = createIntegers(numberOfDistinctValues, originTableFieldDatatype.length);
+				randomValues = createIntegers(numberOfDistinctValues, requiredLength);
 				break;
 			default:
 				throw new ColumnTypeNotSupportedException(
@@ -410,10 +418,10 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			return pseudonyms;
 		}
 
-		public ArrayList<String> createIntegers(int cnt, int length) {
+		public ArrayList<String> createIntegers(int cnt, int requiredLength) {
 			ArrayList<String> values = new ArrayList<String>();
 			for (int i = 0; i < cnt; i++) {
-				values.add(createInteger(i, length));
+				values.add(createInteger(i, requiredLength));
 			}
 			return values;
 		}
@@ -434,10 +442,10 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 			return prefix + String.copyValueOf(value);
 		}
 
-		public String createInteger(int seed, int length) {
+		public String createInteger(int seed, int requiredLength) {
 			int offset = seed;
-			char[] value = new char[length];
-			for (int i = 0; i < length; i++) {
+			char[] value = new char[requiredLength];
+			for (int i = 0; i < requiredLength; i++) {
 				value[i] = shuffledNumbersPool[(offset % 10)];
 				offset = offset / 10;
 			}
@@ -462,12 +470,7 @@ public class PseudonymizeStrategy extends TransformationStrategy {
 	@Override
 	public List<String> transform(Object oldValue, Rule rule, ResultSetRowReader row)
 			throws SQLException, TransformationKeyNotFoundException {
-		checkArgument(oldValue instanceof String || oldValue == null,
-				getClass() + " should transform "
-				+ oldValue + " but can only operate on Strings.");
-		// TODO: check if this works out because we broke the assumption that
-		// even integer columns will be put in as Strings
-		return Lists.newArrayList(transform((String) oldValue, rule, row));
+		return Lists.newArrayList(transform(oldValue.toString(), rule, row));
 	}
 	
 

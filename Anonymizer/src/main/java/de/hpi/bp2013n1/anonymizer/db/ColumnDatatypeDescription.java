@@ -44,7 +44,10 @@ public class ColumnDatatypeDescription {
 	}
 	
 	public String toSQLString() {
-		return SQLTypes.getTypeName(type) + "(" + length + ")";
+		if (SQLTypes.needsLength(type))
+			return SQLTypes.getTypeName(type) + "(" + length + ")";
+		else
+			return SQLTypes.getTypeName(type);
 	}
 
 	public static ColumnDatatypeDescription fromMetaData(

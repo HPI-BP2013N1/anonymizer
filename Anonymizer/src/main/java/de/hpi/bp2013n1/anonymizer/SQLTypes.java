@@ -38,7 +38,7 @@ public class SQLTypes {
 	    case Types.SMALLINT:
 	        return "SMALLINT";
 	    case Types.INTEGER:
-	        return "INTEGER";
+	        return "INT";
 	    case Types.BIGINT:
 	        return "BIGINT";
 	    case Types.FLOAT:
@@ -110,5 +110,9 @@ public class SQLTypes {
 
 	public static boolean isValidType(int dataType) {
 		return getTypeName(dataType) != UNKNOWN_TYPE;
+	}
+
+	public static boolean needsLength(int type) {
+		return isCharacterType(type);
 	}
 }
